@@ -1,0 +1,3 @@
+ghdl -a <file_name>
+ghdl -e <entity_name>
+ghdl -r <entity_name>

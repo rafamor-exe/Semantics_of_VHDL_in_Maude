@@ -1,0 +1,103 @@
+mod VHDLMOD is
+  *** RAFAEL MORALES PALACIOS - SEMANTICS OF VHDL IN MAUDE
+  
+  *** IMPORT DATATYPE MODULES TO BE USED
+  protecting NAT .
+  protecting INT .
+  protecting STRING .
+  
+  *** Declare sorts to be used and hierarchy between them.
+  sorts VHDLSim Code Entity Port Signal SignalName Var Const VarConstName Value Architecture Process Clock ScheduledInst Und .
+  sorts Inst EmptyList NeInstList InstList InstBlock .
+  sorts NeScheduleList ScheduleList NeListeningList ListeningList .
+  sorts Assign SignalAssign VarConstAssign .
+  sorts Store NeStore SignalStore VarStore ConstStore .
+  sorts EmptyStore NeSignalStore NeVarStore NeConstStore .
+
+  *** Simulator components
+  *** subsorts Code Clock ScheduleList ListeningList SignalStore VarStore ConstStore < VHDLSim .
+  
+  subsorts SignalStore VarStore ConstStore < Store .
+  subsorts NeSignalStore NeVarStore NeConstStore < NeStore .
+  subsorts EmptyStore NeSignalStore < SignalStore .
+  subsorts EmptyStore NeVarStore < VarStore .
+  subsorts EmptyStore NeConstStore < ConstStore .
+  subsorts SignalAssign VarConstAssign < Assign .
+  subsorts SignalAssign < NeSignalStore .
+  subsorts VarConstAssign < NeVarStore NeConstStore .
+  subsorts Int < Value .
+
+  subsorts String < SignalName VarConstName .
+
+  *** Instruction lists sorts
+  subsorts NeInstList EmptyList < InstList .
+  subsorts Inst < NeInstList .
+
+  subsorts ScheduledInst < NeScheduleList .
+  subsorts EmptyList NeScheduleList < ScheduleList .
+  subsorts SignalName < NeListeningList .
+  subsorts EmptyList NeListeningList < ListeningList .
+
+  op und : -> Und [ctor] .
+  op EmptyList : -> EmptyList [ctor] .
+
+
+  *** Code represents a whole VHDL file. Rules will be needed for each code statement/block
+  op <_|_><_|_><<_|_|_>> : Clock Code ScheduleList ListeningList SignalStore VarStore ConstStore -> VHDLSim .
+
+  *** Stores definition
+  *** Maybe make a joint definition?? This will probably raise a parse error
+  ***op [_<-_] : SignalName Value -> SignalAssign [ctor] .
+  ***op [_<-_] : VarConstName Value -> VarConstAssign [ctor] .
+  op [_<-_] : String Value -> Assign [ctor] .
+
+  op EmptyStore : -> Store [ctor] .
+  *** TODO: maybe join all store types
+  op __ : SignalAssign SignalStore -> NeSignalStore [assoc comm ctor id: EmptyStore] .
+  ***op __ : VarConstAssign VarStore -> NeVarStore [assoc comm ctor id: EmptyStore] .
+  ***op __ : VarConstAssign ConstStore -> NeConstStore [assoc comm ctor id: EmptyStore] .
+
+  
+  *** InstList definition
+
+  op __ : Inst InstList -> NeInstList [assoc ctor id: EmptyList] .
+
+
+  *** Instruction ops declarations
+  
+  *** lookup-sg: auxiliar op to lookup values from signal store
+  op lookup : NeStore String -> Value .
+
+
+  *** Variable definition
+
+  vars I1 S1 : Inst .
+  vars SignalId : SignalName .
+  var Val : Value .
+  var IL : InstList .
+  var SignalSTR : SignalStore .
+  var Int1 Int2 : Int .
+  var Str : String .
+
+  *** Store is a Set
+  eq [Str <- Val][Str <- Val] = [Str <- Val] .
+
+
+
+  *** Rules
+
+
+  *** lookup rule: get value from reference from local store
+  rl [lookup-sg] : lookup([SignalId <- Val] SignalSTR, SignalId) => Val .
+
+
+  *** InstList operations 
+  op head : NeInstList -> Inst .
+  eq head(I1 IL) = I1 .
+
+  op tail : InstList -> InstList .
+  eq tail(I1 IL) = IL .
+  eq tail(EmptyList) = EmptyList .
+
+endm
+

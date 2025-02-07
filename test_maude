@@ -1,0 +1,12 @@
+rew lookup(("var1" |-> 1, "var2" |-> 2) , "var1") .
+
+rew entity "example_and" is EmptyList; end "example_and" .
+
+rew entity example_and is
+  port (
+    input_1	: in  std_logic;
+    input_2	: in  std_logic;
+    and_result : out std_logic
+  );
+end example_and; .
+rew entity "example_and" is  port (("input_1" : in  "std_logic") ; ("input_2" : in  "std_logic") ; ) ; end "example_and" ; .

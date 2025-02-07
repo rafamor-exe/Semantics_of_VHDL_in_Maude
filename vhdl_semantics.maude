@@ -1,3 +1,17 @@
+***(
+mod VHDL-INST-MOD
+  sorts Inst .
+  subsorts Entity Architecture < Inst .
+
+  op entity _ is _ end _ : String InstList String -> Entity [ctor] .
+
+endm
+
+view Inst from TRIV to VHDL-INST-MOD is 
+  sort Elt to Inst . 
+endv
+)***
+
 mod VHDLMOD is
   *** RAFAEL MORALES PALACIOS - SEMANTICS OF VHDL IN MAUDE
   
@@ -5,14 +19,20 @@ mod VHDLMOD is
   protecting NAT .
   protecting INT .
   protecting STRING .
+  protecting MAP{String, Int} .
+  ***protecting LIST{Inst} .
   
   *** Declare sorts to be used and hierarchy between them.
-  sorts VHDLSim Code Entity Port Signal SignalName Var Const VarConstName Value Architecture Process Clock ScheduledInst Und .
-  sorts Inst EmptyList NeInstList InstList InstBlock .
+  sorts VHDLSim Code Entity Port Signal SignalName Var Const VarConstName Value Architecture Process Clock ScheduledInst Und Error .
+  sorts Inst EmptyList NeInstList InstList InstBlock StructuredInstList .
   sorts NeScheduleList ScheduleList NeListeningList ListeningList .
   sorts Assign SignalAssign VarConstAssign .
   sorts Store NeStore SignalStore VarStore ConstStore .
   sorts EmptyStore NeSignalStore NeVarStore NeConstStore .
+
+  sorts IODef IOType IOValues IODefList NeIODefList .
+  subsorts IODef < NeIODefList .
+  subsorts NeIODefList EmptyList < IODefList .
 
   *** Simulator components
   *** subsorts Code Clock ScheduleList ListeningList SignalStore VarStore ConstStore < VHDLSim .
@@ -33,40 +53,65 @@ mod VHDLMOD is
   subsorts NeInstList EmptyList < InstList .
   subsorts Inst < NeInstList .
 
+  subsorts InstList StructuredInstList < Code .
+
   subsorts ScheduledInst < NeScheduleList .
   subsorts EmptyList NeScheduleList < ScheduleList .
   subsorts SignalName < NeListeningList .
   subsorts EmptyList NeListeningList < ListeningList .
 
+  subsorts Entity Architecture Port < Inst .
+
   op und : -> Und [ctor] .
   op EmptyList : -> EmptyList [ctor] .
+  op error : String -> Error [ctor] .
+
 
 
   *** Code represents a whole VHDL file. Rules will be needed for each code statement/block
-  op <_|_><_|_><<_|_|_>> : Clock Code ScheduleList ListeningList SignalStore VarStore ConstStore -> VHDLSim .
+  op <_|_><_|_><<_|_|_>> : Clock Code ScheduleList ListeningList Map{String, Int} Map{String,Int} Map{String,Int} -> VHDLSim [ctor] .
 
   *** Stores definition
   *** Maybe make a joint definition?? This will probably raise a parse error
   ***op [_<-_] : SignalName Value -> SignalAssign [ctor] .
   ***op [_<-_] : VarConstName Value -> VarConstAssign [ctor] .
-  op [_<-_] : String Value -> Assign [ctor] .
+  ***op [_<-_] : String Value -> Assign [ctor] .
 
-  op EmptyStore : -> Store [ctor] .
+  ***op EmptyStore : -> Store [ctor] .
   *** TODO: maybe join all store types
-  op __ : SignalAssign SignalStore -> NeSignalStore [assoc comm ctor id: EmptyStore] .
+  ***op __ : SignalAssign SignalStore -> NeSignalStore [assoc comm ctor id: EmptyStore] .
   ***op __ : VarConstAssign VarStore -> NeVarStore [assoc comm ctor id: EmptyStore] .
   ***op __ : VarConstAssign ConstStore -> NeConstStore [assoc comm ctor id: EmptyStore] .
 
   
   *** InstList definition
+  op _; : Inst -> Inst .
+  op _;_ : Inst InstList -> NeInstList [assoc ctor id: EmptyList] .
+  ***op _;_ : InstList InstList -> InstList [assoc ctor id: EmptyList prec 25] .
+  ***op _;_ : NeInstList InstList -> NeInstList [assoc ctor id: EmptyList] .
+  ***op _;_ : InstList NeInstList -> NeInstList [assoc ctor id: EmptyList] .
 
-  op __ : Inst InstList -> NeInstList [assoc ctor id: EmptyList] .
-
+  op _:__ : String IOType IOValues -> IODef [ctor] .
+  ops in out : -> IOType [ctor] .
+  ops "std_logic" : -> IOValues [ctor] .
+  op _;_ : IODef IODefList -> NeIODefList [assoc ctor id: EmptyList] . 
 
   *** Instruction ops declarations
+  *** - Test nop
+  op nop : -> Inst [ctor] .
+  *** - Entity
+  op entity _ is _ end _ : String InstList String -> Entity [ctor] .
+  *** - Port
+  op port (_) : NeIODefList -> Port [ctor] .
   
-  *** lookup-sg: auxiliar op to lookup values from signal store
-  op lookup : NeStore String -> Value .
+  *** lookup: auxiliar op to lookup values from signal store
+  op lookup : Map{String, Int} String -> Value .
+
+  op _[_] : InstList InstList -> StructuredInstList [ctor].
+
+
+  *** final_state: final state reachable when max time elapsed is reached
+  *** op final_state : VHDLSim -> FinalState .
 
 
   *** Variable definition
@@ -74,30 +119,43 @@ mod VHDLMOD is
   vars I1 S1 : Inst .
   vars SignalId : SignalName .
   var Val : Value .
-  var IL : InstList .
+  var IL IL1 IL2 : InstList .
+  var NeIL1 NeIL2 : NeInstList .
   var SignalSTR : SignalStore .
+  var STR SgSTR VarSTR ConstSTR : Map{String, Int} .
   var Int1 Int2 : Int .
   var Str : String .
+  var Clk : Clock .
+  var SchList : ScheduleList .
+  var LstList : ListeningList .
 
   *** Store is a Set
-  eq [Str <- Val][Str <- Val] = [Str <- Val] .
+  ***eq [Str <- Val][Str <- Val] = [Str <- Val] .
 
 
 
   *** Rules
-
+  rl [entity] : < Clk | entity Str is IL1 end Str ; IL2 >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >> => < Clk | IL1 [IL2] >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >> .
 
   *** lookup rule: get value from reference from local store
-  rl [lookup-sg] : lookup([SignalId <- Val] SignalSTR, SignalId) => Val .
+  rl [lookup] : lookup(STR, Str) => STR[Str] .
+
+  *** nop: test instruction
+  rl [nop] : < Clk | nop ; IL2 >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >> => < Clk | IL2 >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >> .
+
 
 
   *** InstList operations 
   op head : NeInstList -> Inst .
-  eq head(I1 IL) = I1 .
+  eq head(I1 ; IL) = I1 .
 
   op tail : InstList -> InstList .
-  eq tail(I1 IL) = IL .
+  eq tail(I1 ; IL) = IL .
   eq tail(EmptyList) = EmptyList .
+
+  ***op extend : NeInstList NeInstList -> NeInstList .
+  ***eq extend(IL1, IL2) = IL1 IL2 .
+
 
 endm
 

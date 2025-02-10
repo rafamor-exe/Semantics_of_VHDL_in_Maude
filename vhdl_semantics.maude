@@ -111,6 +111,8 @@ mod VHDLMOD is
   *** Code represents a whole VHDL file. Rules will be needed for each code statement/block
   op <_|_><_|_><<_|_|_>> : Clock Code ScheduleList ListeningList SignalStore VarStore ConstStore -> VHDLSim [ctor] .
 
+  op clk : Nat -> Clock [ctor] .
+
   *** Stores definition
   *** Maybe make a joint definition?? This will probably raise a parse error
   ***op [_<-_] : SignalName Value -> SignalAssign [ctor] .
@@ -132,7 +134,7 @@ mod VHDLMOD is
   op lookup : Map{String, Value} String -> Value .
   op lookup-sg : Map{String, Value} String -> Value .
 
-  op _[_] : List{InstColon} List{InstColon} -> StructuredInstList [ctor].
+  ***op _[_] : List{InstColon} List{InstColon} -> StructuredInstList [ctor].
 
 
   *** final_state: final state reachable when max time elapsed is reached
@@ -146,7 +148,7 @@ mod VHDLMOD is
   var Val : Value .
   var IL IL1 IL2 : List{InstColon} .
   var NeIL1 NeIL2 : NeList{InstColon} .
-  var SgSTR : Map{String, Value} .
+  var SgSTR : SignalStore .
   var STR VarSTR ConstSTR : Map{String, Value} .
   var Int1 Int2 : Int .
   var Str : String .
@@ -154,22 +156,23 @@ mod VHDLMOD is
   var SchList : ScheduleList .
   var LstList : ListeningList .
 
-  *** Store is a Set
-  ***eq [Str <- Val][Str <- Val] = [Str <- Val] .
+  *** TODO: Restrict values of SgSTR to StdLogic with cmb
 
 
 
   *** Rules
-  rl [entity] : < Clk | (entity Str is IL1 end Str) ; IL2 >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >> => < Clk | IL1 [IL2] >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >> .
+  rl [entity] : < Clk | (entity Str is IL1 end Str) ; IL2 >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >> => < Clk | IL1 IL2 >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >> .
 
   *** lookup rule: get value from reference from local store
   rl [lookup] : lookup(STR, Str) => STR[Str] .
   rl [lookup-sg] : lookup-sg(SgSTR, Str) => SgSTR[Str] .
 
   *** nop: test instruction
-  rl [nop] : < Clk | nop ; IL2 >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >> => < Clk | IL2 >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >> .
+  rl [nop] : < Clk | nop ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >> => < Clk | IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >> .
 
 
+  *** exit-block: exit an inner block and continue where left before
+  rl [exit-block] : exit-block(IL) => IL .
 
   *** List{Inst} operations 
   op head : NeList{InstColon} -> InstColon .
@@ -178,6 +181,7 @@ mod VHDLMOD is
   op tail : NeList{InstColon} -> List{InstColon} .
   eq tail(I1 IL) = IL .
 
+  op exit-block : List{InstColon} -> List{InstColon} .
 
 
 endm

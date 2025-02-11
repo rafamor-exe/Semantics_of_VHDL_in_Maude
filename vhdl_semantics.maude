@@ -2,10 +2,13 @@ fmod VHDL-IODEF-MOD is
 
   protecting STRING .
 
-  sorts IODef IOType IOValues .
+  sorts IODef IOType IOValues SgDesc .
 
   ops in out : -> IOType [ctor] .
   ops "std_logic" : -> IOValues [ctor] .
+
+  op (_$_) : IOType IOValues -> SgDesc .
+
   op _:__; : String IOType IOValues -> IODef [ctor] .
 
 endfm
@@ -14,14 +17,19 @@ view IODef from TRIV to VHDL-IODEF-MOD is
   sort Elt to IODef .
 endv
 
+view SgDesc from TRIV to VHDL-IODEF-MOD is
+  sort Elt to SgDesc .
+endv
+
 fmod VHDL-INSTCOLON-MOD is
 
   protecting VHDL-IODEF-MOD .
   ***protecting STRING .
   protecting LIST{IODef} .
 
-  sorts Inst InstColon Architecture Port .
-  subsorts Architecture Port < Inst .
+  sorts Inst InstColon Port SignalName VarConstName SgAssign AExp .
+  subsorts Port SgAssign < Inst .
+  subsorts String < SignalName VarConstName .
 
   op _; : Inst -> InstColon [ctor].
 
@@ -30,6 +38,8 @@ fmod VHDL-INSTCOLON-MOD is
   op nop : -> Inst [ctor] .
   *** - Port
   op port (_) : NeList{IODef} -> Port [ctor] .
+
+  op _ <= _ : SignalName AExp -> SgAssign [ctor] .
 
 endfm
 
@@ -63,10 +73,11 @@ mod VHDLMOD is
   protecting VHDL-INSTCOLON-MOD .
   protecting VHDL-VALUE-MOD .
   protecting MAP{String, Value} .
+  protecting MAP{String, SgDesc} .
   protecting LIST{InstColon} .
   
   *** Declare sorts to be used and hierarchy between them.
-  sorts VHDLSim Code Signal SignalName Var Const VarConstName Process Clock ScheduledInst Und Error Entity . ***sorts VHDLSim Code Entity Port Signal SignalName Var Const VarConstName Value Architecture Process Clock ScheduledInst Und Error .
+  sorts VHDLSim Code Signal Var Const Process Clock ScheduledInst Und Error Entity Architecture SgDescStore . ***sorts VHDLSim Code Entity Port Signal SignalName Var Const VarConstName Value Architecture Process Clock ScheduledInst Und Error .
   sorts EmptyList InstBlock StructuredInstList . ***sorts Inst EmptyList NeList{Inst} List{Inst} InstBlock StructuredInstList .
   sorts NeScheduleList ScheduleList NeListeningList ListeningList .
   sorts Assign SignalAssign VarConstAssign .
@@ -79,6 +90,7 @@ mod VHDLMOD is
   
   subsorts VarStore ConstStore < Map{String, Value} .
   subsorts SignalStore < Map{String, Value} .
+  subsorts SgDescStore < Map{String, SgDesc} .
   ***subsorts NeSignalStore NeVarStore NeConstStore < NeStore .
   ***subsorts EmptyStore NeSignalStore < SignalStore .
   ***subsorts EmptyStore NeVarStore < VarStore .
@@ -89,8 +101,6 @@ mod VHDLMOD is
   ***
   ***subsorts Int StdLogic < Value .
 
-  subsorts String < SignalName VarConstName .
-
   subsorts List{InstColon} StructuredInstList < Code .
 
   subsorts ScheduledInst < NeScheduleList .
@@ -98,7 +108,7 @@ mod VHDLMOD is
   subsorts SignalName < NeListeningList .
   subsorts EmptyList NeListeningList < ListeningList .
 
-  subsorts Entity < Inst .
+  subsorts Entity Architecture < Inst .
 
   ***subsorts Entity Architecture Port < Inst .
 
@@ -109,7 +119,7 @@ mod VHDLMOD is
 
 
   *** Code represents a whole VHDL file. Rules will be needed for each code statement/block
-  op <_|_><_|_><<_|_|_>> : Clock List{InstColon} ScheduleList ListeningList SignalStore VarStore ConstStore -> VHDLSim [ctor] .
+  op <_|_><_|_><<_|_|_>>#<_> : Clock List{InstColon} ScheduleList ListeningList SignalStore VarStore ConstStore SgDescStore -> VHDLSim [ctor] .
 
   op clk : Nat -> Clock [ctor] .
 
@@ -129,6 +139,7 @@ mod VHDLMOD is
   *** Instruction ops declarations (that include inner instruction lists)
   *** - Entity
   op entity _ is _ end _ : String List{InstColon} String -> Entity [ctor] .
+  op architecture _ of _ is _ begin _ end _ : String String List{InstColon} List{InstColon} String -> Architecture [ctor] .
   
   *** lookup: auxiliar op to lookup values from signal store
   op lookup : Map{String, Value} String -> Value .
@@ -150,29 +161,43 @@ mod VHDLMOD is
   var NeIL1 NeIL2 : NeList{InstColon} .
   var SgSTR : Map{String, Value} .
   var STR VarSTR ConstSTR : Map{String, Value} .
+  var SgDescSTR : Map{String, SgDesc} .
   var Int1 Int2 : Int .
-  var Str : String .
+  var Str Str2 : String .
   var Clk : Clock .
   var SchList : ScheduleList .
   var LstList : ListeningList .
+  var NeIODefL : NeList{IODef} .
+  var IODef : IODef .
+  var IOType : IOType .
+  var IOValues : IOValues .
+  var IODefL : List{IODef} .
 
   *** TODO: Restrict values of SgSTR to StdLogic with cmb
 
-
+***_:__; : String IOType IOValues
 
   *** Rules
-  rl [entity] : < Clk | (entity Str is IL1 end Str) ; IL2 >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >> => < Clk | IL1 IL2 >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >> .
+  rl [entity] : < Clk | (entity Str is IL1 end Str) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > => < Clk | IL1 exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
+  ***crl [entity-err] : < Clk | (entity Str is IL1 end Str2) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >> => error("ERROR: Entity name mismatch") if Str =/= Str2 .
+
+  rl [port] : < Clk | (port(NeIODefL)) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > => < Clk | get-port-sg(NeIODefL) ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
+  rl [get-port-sg] : < Clk | (get-port-sg((Str : IOType IOValues ;) IODefL)) ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > => < Clk | get-port-sg(IODefL) ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< insert(Str, ( IOType $ IOValues), SgDescSTR) > .
+  rl [get-port-sg-empty] : < Clk | (get-port-sg(nil)) ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > => < Clk | exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
+  
+  
+  rl [architecture] : < Clk | (architecture Str of Str2 is IL1 begin IL2 end Str) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > => < Clk | IL1 exit-block(IL2 exit-block(IL)) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
 
   *** lookup rule: get value from reference from local store
   rl [lookup] : lookup(STR, Str) => STR[Str] .
   rl [lookup-sg] : lookup-sg(SgSTR, Str) => SgSTR[Str] .
 
   *** nop: test instruction
-  rl [nop] : < Clk | nop ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >> => < Clk | IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >> .
+  rl [nop] : < Clk | nop ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > => < Clk | IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
 
 
   *** exit-block: exit an inner block and continue where left before
-  rl [exit-block] : exit-block(IL) => IL .
+  rl [exit-block] : < Clk | exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > => < Clk | IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
 
   *** List{Inst} operations 
   op head : NeList{InstColon} -> InstColon .
@@ -182,6 +207,8 @@ mod VHDLMOD is
   eq tail(I1 IL) = IL .
 
   op exit-block : List{InstColon} -> List{InstColon} .
+
+  op get-port-sg : List{IODef} -> Inst [ctor] .
 
 
 endm

@@ -109,7 +109,7 @@ mod VHDLMOD is
 
 
   *** Code represents a whole VHDL file. Rules will be needed for each code statement/block
-  op <_|_><_|_><<_|_|_>> : Clock Code ScheduleList ListeningList SignalStore VarStore ConstStore -> VHDLSim [ctor] .
+  op <_|_><_|_><<_|_|_>> : Clock List{InstColon} ScheduleList ListeningList SignalStore VarStore ConstStore -> VHDLSim [ctor] .
 
   op clk : Nat -> Clock [ctor] .
 
@@ -148,7 +148,7 @@ mod VHDLMOD is
   var Val : Value .
   var IL IL1 IL2 : List{InstColon} .
   var NeIL1 NeIL2 : NeList{InstColon} .
-  var SgSTR : SignalStore .
+  var SgSTR : Map{String, Value} .
   var STR VarSTR ConstSTR : Map{String, Value} .
   var Int1 Int2 : Int .
   var Str : String .

@@ -21,15 +21,40 @@ view SgDesc from TRIV to VHDL-IODEF-MOD is
   sort Elt to SgDesc .
 endv
 
+fmod VHDL-VALUE-MOD is
+
+  protecting INT .
+  protecting STRING .
+
+  sort StdLogic Value .
+  subsorts Int StdLogic < Value .
+  ***subsorts StdLogic < Value .
+
+  ops '0' '1' 'U' 'X' 'Z' 'W' 'L' 'H' '-' : -> StdLogic [ctor] .
+
+endfm
+
+view Value from TRIV to VHDL-VALUE-MOD is
+  sort Elt to Value .
+endv
+
 fmod VHDL-INSTCOLON-MOD is
 
   protecting VHDL-IODEF-MOD .
-  ***protecting STRING .
+  protecting VHDL-VALUE-MOD .
   protecting LIST{IODef} .
 
-  sorts Inst InstColon Port SignalName VarConstName SgAssign AExp .
+  sorts Inst InstColon Port SignalName VarConstName SgAssign AExp Term Op .
   subsorts Port SgAssign < Inst .
   subsorts String < SignalName VarConstName .
+  subsorts Int StdLogic < AExp .
+
+  ***ops and or xor xand not : -> Op [ctor] . 
+  ***op _ _ _ : Term Op AExp -> AExp [ctor] .
+
+  ***vars Op : Op .
+  ***vars T : Term .
+  ***eq T Op 'U' = 'U' .
 
   op _; : Inst -> InstColon [ctor].
 
@@ -39,28 +64,33 @@ fmod VHDL-INSTCOLON-MOD is
   *** - Port
   op port (_) : NeList{IODef} -> Port [ctor] .
 
+  vars StdLogicVal1 : StdLogic .
+  vars AExp1 AExp2 : AExp .
+  op not_ : AExp -> AExp [ctor] .
+  ceq not AExp1 = '0' if AExp1 == '1' .
+  ceq not AExp1 = '1' if AExp1 == '0' .
+  ceq not AExp1 = 'U' if AExp1 == 'U' .
+  op _or_ : StdLogic AExp -> AExp [ctor] .
+  eq '1' or AExp1 = '1' .
+  eq '0' or AExp1 = AExp1 .
+  eq 'U' or AExp1 = AExp1 .
+  op _and_ : StdLogic AExp -> AExp [ctor] .
+  eq '1' and AExp1 = AExp1 .
+  eq '0' and AExp1 =  '0' .
+  eq 'U' and AExp1 = 'U' .
+  op _xor_ : AExp AExp -> AExp [ditto ctor] .
+  ceq AExp1 xor AExp2 = '1' if AExp1 =/= AExp2 /\ (AExp1 == '1' or AExp2 == '1') .
+  eq AExp1 xor AExp2 =  '0' [owise] .
+  op _xand_ : AExp AExp -> AExp [ctor] .
+  ceq AExp1 xand AExp2 = '1' if AExp1 == AExp2 .
+  eq AExp1 xand AExp2 =  '0' [owise] .
+
   op _ <= _ : SignalName AExp -> SgAssign [ctor] .
 
 endfm
 
 view InstColon from TRIV to VHDL-INSTCOLON-MOD is
   sort Elt to InstColon .
-endv
-
-fmod VHDL-VALUE-MOD is
-
-  protecting INT .
-  protecting STRING .
-
-  sort StdLogic Value .
-  subsorts Int StdLogic < Value .
-
-  ops '0' '1' 'U' 'X' 'Z' 'W' 'L' 'H' '-' : -> StdLogic [ctor] .
-
-endfm
-
-view Value from TRIV to VHDL-VALUE-MOD is
-  sort Elt to Value .
 endv
 
 mod VHDLMOD is
@@ -155,7 +185,7 @@ mod VHDLMOD is
   *** Variable definition
 
   vars I1 S1 : InstColon .
-  vars SignalId : SignalName .
+  vars SignalId SignalId1 SignalId2 : SignalName .
   var Val : Value .
   var IL IL1 IL2 : List{InstColon} .
   var NeIL1 NeIL2 : NeList{InstColon} .
@@ -165,6 +195,7 @@ mod VHDLMOD is
   var Int1 Int2 : Int .
   var Str Str2 : String .
   var Clk : Clock .
+  var N : Nat .
   var SchList : ScheduleList .
   var LstList : ListeningList .
   var NeIODefL : NeList{IODef} .
@@ -172,6 +203,8 @@ mod VHDLMOD is
   var IOType : IOType .
   var IOValues : IOValues .
   var IODefL : List{IODef} .
+  var StdLogicVal : StdLogic .
+  var AExp1 : AExp .
 
   *** TODO: Restrict values of SgSTR to StdLogic with cmb
 
@@ -183,11 +216,17 @@ mod VHDLMOD is
 
   rl [port] : < Clk | (port(NeIODefL)) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > => < Clk | get-port-sg(NeIODefL) ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
   rl [get-port-sg] : < Clk | (get-port-sg((Str : IOType IOValues ;) IODefL)) ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > => < Clk | get-port-sg(IODefL) ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< insert(Str, ( IOType $ IOValues), SgDescSTR) > .
-  rl [get-port-sg-empty] : < Clk | (get-port-sg(nil)) ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > => < Clk | exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
+  ***rl [get-port-sg-empty] : < Clk | (get-port-sg(nil)) ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > => < Clk | exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
   
   
   rl [architecture] : < Clk | (architecture Str of Str2 is IL1 begin IL2 end Str) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > => < Clk | IL1 exit-block(IL2 exit-block(IL)) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
 
+  rl [assign-sg-val] :  < clk(N) | (SignalId <= AExp1) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
+                    => 
+                    < clk(N + 1) | IL >< SchList | LstList ><< insert(SignalId, AExp1, SgSTR) | VarSTR | ConstSTR >>#< SgDescSTR > .
+  
+  ***rl [solve-aexp] : SignalId Op AExp1 => lookup(SignalId)
+  
   *** lookup rule: get value from reference from local store
   rl [lookup] : lookup(STR, Str) => STR[Str] .
   rl [lookup-sg] : lookup-sg(SgSTR, Str) => SgSTR[Str] .
@@ -209,6 +248,8 @@ mod VHDLMOD is
   op exit-block : List{InstColon} -> List{InstColon} .
 
   op get-port-sg : List{IODef} -> Inst [ctor] .
+  eq get-port-sg(nil) = nop .
+
 
 
 endm

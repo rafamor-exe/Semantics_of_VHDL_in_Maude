@@ -49,7 +49,7 @@ fmod VHDL-INSTCOLON-MOD is
   subsorts String < SignalName VarConstName .
   subsorts Int StdLogic < AExp .
 
-  ops and or xand : -> Op [ctor] . 
+  ops and or xand sg-xor : -> Op [ctor] . 
   ***op _ _ _ : Term Op AExp -> AExp [ctor] .
 
   vars Op : Op .
@@ -87,6 +87,9 @@ fmod VHDL-INSTCOLON-MOD is
   ***op _xand_ : AExp AExp -> AExp [ctor] .
   ceq AExp1 xand AExp2 = '1' if AExp1 == AExp2 .
   eq AExp1 xand AExp2 =  '0' [owise] .
+
+  ceq StdLogicVal1 sg-xor AExp2 = '1' if StdLogicVal1 =/= AExp2 /\ (StdLogicVal1 == '1' or AExp2 == '1') .
+  eq StdLogicVal1 sg-xor AExp2 =  '0' [owise] .
 
   op _ <= _ : SignalName AExp -> SgAssign [ctor] .
 
@@ -176,7 +179,8 @@ mod VHDLMOD is
   
   *** lookup: auxiliar op to lookup values from signal store
   op lookup : Map{String, Value} String -> Value .
-  op lookup-sg : SignalName -> StdLogic .
+  *** lookup-sg must be an eq to be able to evaluate it everywhere
+  op lookup-sg : Map{String, Value} SignalName -> StdLogic .
 
 
   ***op _[_] : List{InstColon} List{InstColon} -> StructuredInstList [ctor].
@@ -231,13 +235,13 @@ mod VHDLMOD is
   rl [assign-sg-val] :  < clk(N) | (SignalId <= StdLogicVal) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
                     => 
                     < clk(N + 1) | verify-sg(out, SignalId, SgDescSTR) ; IL >< SchList | LstList ><< insert(SignalId, StdLogicVal, SgSTR) | VarSTR | ConstSTR >>#< SgDescSTR > .
-  rl [lookup-sg] :  < clk(N) | (SignalId <= lookup-sg(SignalId1) Op AExp1) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
+  rl [lookup-sg] :  < clk(N) | (SignalId <= SignalId1 Op AExp1) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
                   => 
-                  < clk(N) | (SignalId <= SgSTR[SignalId1] Op AExp1) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
+                  < clk(N) | (SignalId <= lookup-sg(SgSTR, SignalId1) Op AExp1) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
                   
-  ***rl [lookup-sg-bis] :  < clk(N) | (SignalId <= AExp1 Op lookup-sg(SignalId1)) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
-  ***              => 
-  ***              < clk(N) | (SignalId <= AExp1 Op SgSTR[SignalId1]) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
+  rl [lookup-sg-bis] :  < clk(N) | (SignalId <= AExp1 Op SignalId1) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
+                => 
+                < clk(N) | (SignalId <= AExp1 Op lookup-sg(SgSTR, SignalId1)) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
   
   ***rl [solve-aexp] : SignalId Op AExp1 => lookup(SignalId)
   
@@ -275,15 +279,22 @@ mod VHDLMOD is
   eq get-sgtype(IOType $ IOValues) = IOType .
 
   op ___ : SignalName Op AExp -> AExp [ctor] .
-  eq SignalId Op AExp1 = lookup-sg(SignalId) Op AExp1 .
+  ***eq SignalId Op AExp1 = lookup-sg(SignalId, SgSTR) Op AExp1 .
+  op ___ : AExp Op SignalName -> AExp [ctor] .
+  ***eq AExp1 Op SignalId = AExp1 Op lookup-sg(SignalId, SgSTR) .
   op ___ : SignalName Op SignalName -> AExp [ctor] .
-  eq SignalId1 Op SignalId2 = lookup-sg(SignalId1) Op lookup-sg(SignalId2) .
+  ***eq SignalId1 Op SignalId2 = lookup-sg(SignalId1) Op lookup-sg(SignalId2, SgSTR) .
 
   *** Needed specific declaration for xor due to collisions
   op _xor_ : SignalName AExp -> AExp [ctor] .
-  eq SignalId xor AExp1 = lookup-sg(SignalId) xor AExp1 .
+  op _xor_ : AExp SignalName -> AExp [ctor] .
+  ***eq SignalId xor AExp1 = lookup-sg(SignalId, SgSTR) xor AExp1 .
+  eq SignalId xor AExp1 = SignalId sg-xor AExp1 .
+  eq AExp1 xor SignalId = AExp1 sg-xor SignalId .
   ***op _xor_ : AExp SignalName -> AExp [ctor] .
   ***eq AExp1 xor SignalId = AExp1 xor lookup-sg(SignalId) .
+
+   eq lookup-sg(SgSTR, SignalId) = SgSTR[SignalId] .
 
 
 endm

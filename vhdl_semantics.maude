@@ -5,7 +5,7 @@ fmod VHDL-IODEF-MOD is
   sorts IODef IOType IOValues SgDesc .
 
   ops in out : -> IOType [ctor] .
-  ops "std_logic" : -> IOValues [ctor] .
+  ops "std_logic" "bit" : -> IOValues [ctor] .
 
   op (_$_) : IOType IOValues -> SgDesc .
 
@@ -23,14 +23,34 @@ endv
 
 fmod VHDL-VALUE-MOD is
 
-  protecting INT .
+  protecting RAT .
   protecting STRING .
 
-  sort StdLogic Value .
-  subsorts Int StdLogic < Value .
+  sort StdLogic Value Bit Time TimeUnit .
+  subsorts Int StdLogic Time < Value .
+  subsorts Bit < StdLogic .
   ***subsorts StdLogic < Value .
 
-  ops '0' '1' 'U' 'X' 'Z' 'W' 'L' 'H' '-' : -> StdLogic [ctor] .
+  ops '0' '1' : -> Bit [ctor] .
+  ops 'U' 'X' 'Z' 'W' 'L' 'H' '-' : -> StdLogic [ctor] .
+
+  ops hr min sec ms us ns ps fs : -> TimeUnit [ctor] .
+  op __ : Rat TimeUnit -> Time [ctor] .
+
+  *** operations will be done with ns
+  op to-ns : Time -> Time [ctor] .
+
+  var R : Rat .
+  eq to-ns(R fs) = to-ns((R / 1000) ps).
+  eq to-ns(R ps) = to-ns((R / 1000) ns).
+  eq to-ns(R ns) = R ns .
+  eq to-ns(R us) = to-ns((R * 1000) ns).
+  eq to-ns(R ms) = to-ns((R * 1000 ) us) .
+  eq to-ns(R sec) = to-ns((R * 1000) ms) .
+  eq to-ns(R min) = to-ns((R * 60) sec) .
+  eq to-ns(R hr) = to-ns((R * 60) min) .
+
+
 
 endfm
 
@@ -47,7 +67,7 @@ fmod VHDL-GENERIC-MOD is
   sorts GenDef VarType .
 
   op _: _ := _; : String VarType Value -> GenDef [ctor] .
-  ops natural integer : -> VarType [ctor] .
+  ops natural integer time : -> VarType [ctor] .
 
 endfm
 
@@ -253,6 +273,7 @@ mod VHDLMOD is
   var NeGenDefL : NeList{GenDef} .
   var GenDefL : List{GenDef} .
   var EntityIL : List{EntityInstColon} .
+  var T : Time .
 
   *** TODO: Restrict values of SgSTR to StdLogic with cmb
 
@@ -356,6 +377,7 @@ mod VHDLMOD is
   op verify-gen : VarType Value -> Inst [ctor] .
   eq verify-gen(natural, N) = nop .
   eq verify-gen(integer, Int) = nop .
+  eq verify-gen(time, T) = nop .
   eq verify-gen(VarType, Val) = error("ERROR: Generic type incorrect") [owise] .
 
 endm

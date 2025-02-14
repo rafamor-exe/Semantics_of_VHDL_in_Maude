@@ -26,13 +26,18 @@ fmod VHDL-VALUE-MOD is
   protecting RAT .
   protecting STRING .
 
-  sort StdLogic Value Bit Time TimeUnit .
+  sorts StdLogic Value Bit .
+  sorts Time TimeUnit .
   subsorts Int StdLogic Time < Value .
   subsorts Bit < StdLogic .
   ***subsorts StdLogic < Value .
 
+  *** Bit logic
+
   ops '0' '1' : -> Bit [ctor] .
   ops 'U' 'X' 'Z' 'W' 'L' 'H' '-' : -> StdLogic [ctor] .
+
+  *** Time
 
   ops hr min sec ms us ns ps fs : -> TimeUnit [ctor] .
   op __ : Rat TimeUnit -> Time [ctor] .
@@ -50,8 +55,6 @@ fmod VHDL-VALUE-MOD is
   eq to-ns(R min) = to-ns((R * 60) sec) .
   eq to-ns(R hr) = to-ns((R * 60) min) .
 
-
-
 endfm
 
 view Value from TRIV to VHDL-VALUE-MOD is
@@ -67,7 +70,7 @@ fmod VHDL-GENERIC-MOD is
   sorts GenDef VarType .
 
   op _: _ := _; : String VarType Value -> GenDef [ctor] .
-  ops natural integer time : -> VarType [ctor] .
+  ops natural integer time positive : -> VarType [ctor] .
 
 endfm
 
@@ -274,6 +277,7 @@ mod VHDLMOD is
   var GenDefL : List{GenDef} .
   var EntityIL : List{EntityInstColon} .
   var T : Time .
+  var NzN : NzNat .
 
   *** TODO: Restrict values of SgSTR to StdLogic with cmb
 
@@ -378,6 +382,7 @@ mod VHDLMOD is
   eq verify-gen(natural, N) = nop .
   eq verify-gen(integer, Int) = nop .
   eq verify-gen(time, T) = nop .
+  eq verify-gen(positive, NzN) = nop .
   eq verify-gen(VarType, Val) = error("ERROR: Generic type incorrect") [owise] .
 
 endm

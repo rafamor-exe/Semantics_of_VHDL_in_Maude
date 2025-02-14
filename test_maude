@@ -48,3 +48,6 @@ rew < clk(1) | (entity "example_and" is generic (("N" : integer := -1 ;) ("delay
 rew < clk(1) | (entity "example_and" is generic (("N" : integer := -1 ;) ("delay" : natural := 15 ;)) ; end "example_and" ) ; nop ; >< EmptyList | EmptyList ><< empty | empty | empty >>#< empty > .
 
 rew < clk(1) | (entity "example_and" is generic (("N" : integer := -1 ;) ("delay" : time := to-ns(1 hr) ;)) ; end "example_and" ) ; nop ; >< EmptyList | EmptyList ><< empty | empty | empty >>#< empty > .
+
+red verify-gen(positive, 0) .
+red verify-gen(positive, 1) .

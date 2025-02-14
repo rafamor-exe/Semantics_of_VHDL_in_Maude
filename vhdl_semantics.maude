@@ -38,14 +38,36 @@ view Value from TRIV to VHDL-VALUE-MOD is
   sort Elt to Value .
 endv
 
+
+fmod VHDL-GENERIC-MOD is
+
+  protecting STRING .
+  protecting VHDL-VALUE-MOD .
+
+  sorts GenDef VarType .
+
+  op _: _ := _; : String VarType Value -> GenDef [ctor] .
+  ops natural integer : -> VarType [ctor] .
+
+endfm
+
+view GenDef from TRIV to VHDL-GENERIC-MOD is
+  sort Elt to GenDef .
+endv
+
 fmod VHDL-INSTCOLON-MOD is
 
   protecting VHDL-IODEF-MOD .
   protecting VHDL-VALUE-MOD .
+  protecting VHDL-GENERIC-MOD .
   protecting LIST{IODef} .
+  protecting LIST{GenDef} .
 
-  sorts Inst InstColon Port SignalName VarConstName SgAssign AExp Term Op .
-  subsorts Port SgAssign < Inst .
+  sorts Inst InstColon EntityInst EntityInstColon Port SignalName VarConstName SgAssign AExp Term Op Generic .
+  subsorts Port Generic < EntityInst .
+  subsorts EntityInst SgAssign < Inst .
+  *** The following order causes Advisory messages on loading the module
+  ***subsorts EntityInstColon < InstColon .
   subsorts String < SignalName VarConstName .
   subsorts Int StdLogic < AExp .
 
@@ -54,16 +76,21 @@ fmod VHDL-INSTCOLON-MOD is
 
   vars Op : Op .
   vars SignalId : SignalName .
+  var EntityI : EntityInst .
   ***vars T : Term .
   ***eq T Op 'U' = 'U' .
 
   op _; : Inst -> InstColon [ctor].
+  ***mb (EntityI ;) : EntityInstColon .
+  ***op _; : EntityInst -> EntityInstColon [ctor] .
 
   *** Instruction ops declarations (no dependency on instruction lists)
   *** - Test nop
   op nop : -> Inst [ctor] .
   *** - Port
   op port (_) : NeList{IODef} -> Port [ctor] .
+  *** - Generic
+  op generic (_) : NeList{GenDef} -> Generic [ctor] .
 
   vars StdLogicVal1 : StdLogic .
   vars AExp1 AExp2 : AExp .
@@ -99,6 +126,10 @@ view InstColon from TRIV to VHDL-INSTCOLON-MOD is
   sort Elt to InstColon .
 endv
 
+view EntityInstColon from TRIV to VHDL-INSTCOLON-MOD is
+  sort Elt to EntityInstColon .
+endv
+
 mod VHDLMOD is
   *** RAFAEL MORALES PALACIOS - SEMANTICS OF VHDL IN MAUDE
   
@@ -108,9 +139,11 @@ mod VHDLMOD is
   ***protecting STRING .
   protecting VHDL-INSTCOLON-MOD .
   protecting VHDL-VALUE-MOD .
+  protecting VHDL-GENERIC-MOD .
   protecting MAP{String, Value} .
   protecting MAP{String, SgDesc} .
   protecting LIST{InstColon} .
+  protecting LIST{EntityInstColon} .
   
   *** Declare sorts to be used and hierarchy between them.
   sorts VHDLSim Code Signal Var Const Process Clock ScheduledInst Und Error Entity Architecture SgDescStore . ***sorts VHDLSim Code Entity Port Signal SignalName Var Const VarConstName Value Architecture Process Clock ScheduledInst Und Error .
@@ -204,6 +237,7 @@ mod VHDLMOD is
   var Str Str2 : String .
   var Clk : Clock .
   var N : Nat .
+  var Int : Int .
   var SchList : ScheduleList .
   var LstList : ListeningList .
   var NeIODefL : NeList{IODef} .
@@ -215,19 +249,32 @@ mod VHDLMOD is
   var AExp1 : AExp .
   var Error : Error .
   vars Op : Op .
+  var VarType : VarType .
+  var NeGenDefL : NeList{GenDef} .
+  var GenDefL : List{GenDef} .
+  var EntityIL : List{EntityInstColon} .
 
   *** TODO: Restrict values of SgSTR to StdLogic with cmb
 
   ***_:__; : String IOType IOValues
 
   *** Rules
-  rl [entity] : < Clk | (entity Str is IL1 end Str) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > => < Clk | IL1 exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
+  rl [entity] : < Clk | (entity Str is IL1 end Str) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
+                => 
+                < Clk | IL1 exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
   ***crl [entity-err] : < Clk | (entity Str is IL1 end Str2) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >> => error("ERROR: Entity name mismatch") if Str =/= Str2 .
 
   rl [port] : < Clk | (port(NeIODefL)) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > => < Clk | get-port-sg(NeIODefL) ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
   rl [get-port-sg] : < Clk | (get-port-sg((Str : IOType IOValues ;) IODefL)) ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > => < Clk | get-port-sg(IODefL) ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< insert(Str, ( IOType $ IOValues), SgDescSTR) > .
   ***rl [get-port-sg-empty] : < Clk | (get-port-sg(nil)) ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > => < Clk | exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
-  
+  rl [generic] : < Clk | (generic(NeGenDefL)) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
+                => 
+                < Clk | get-gen(NeGenDefL) ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
+  rl [get-gen] : < Clk | (get-gen((Str : VarType := Val ;) GenDefL)) ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
+                =>
+                < Clk | verify-gen(VarType, Val) ; get-gen(GenDefL) ; exit-block(IL) >< SchList | LstList ><< SgSTR | insert(Str, Val, VarSTR) | ConstSTR >>#< SgDescSTR > .
+
+
   
   rl [architecture] : < Clk | (architecture Str of Str2 is IL1 begin IL2 end Str) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > => < Clk | IL1 exit-block(IL2 exit-block(IL)) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
 
@@ -270,13 +317,13 @@ mod VHDLMOD is
   op get-port-sg : List{IODef} -> Inst [ctor] .
   eq get-port-sg(nil) = nop .
 
-  *** verify-sg: auxilar op to verify signal types on instructions
-  op verify-sg : IOType SignalName Map{String, SgDesc} -> Inst [ctor] .
-  ceq verify-sg(IOType, SignalId, SgDescSTR) = nop if IOType == get-sgtype(SgDescSTR[SignalId]) .
-  eq verify-sg(IOType, SignalId, SgDescSTR) = error("ERROR: Signal type incorrect") [owise] .
-
   op get-sgtype : SgDesc -> IOType .
   eq get-sgtype(IOType $ IOValues) = IOType .
+
+  op get-gen : List{GenDef} -> Inst [ctor] .
+  eq get-gen(nil) = nop .
+
+  *** ------------
 
   op ___ : SignalName Op AExp -> AExp [ctor] .
   ***eq SignalId Op AExp1 = lookup-sg(SignalId, SgSTR) Op AExp1 .
@@ -293,9 +340,23 @@ mod VHDLMOD is
   eq AExp1 xor SignalId = AExp1 sg-xor SignalId .
   ***op _xor_ : AExp SignalName -> AExp [ctor] .
   ***eq AExp1 xor SignalId = AExp1 xor lookup-sg(SignalId) .
+  
+  *** lookup signal from signal store
+  eq lookup-sg(SgSTR, SignalId) = SgSTR[SignalId] .
 
-   eq lookup-sg(SgSTR, SignalId) = SgSTR[SignalId] .
-
+  ***--------------------------
+  *** VERIFICATION
+  ***--------------------------
+  *** verify-sg: auxilar op to verify signal types on instructions
+  op verify-sg : IOType SignalName Map{String, SgDesc} -> Inst [ctor] .
+  ceq verify-sg(IOType, SignalId, SgDescSTR) = nop if IOType == get-sgtype(SgDescSTR[SignalId]) .
+  eq verify-sg(IOType, SignalId, SgDescSTR) = error("ERROR: Signal type incorrect") [owise] .
+  
+  *** verify-gen : auxiliar op to verify generic declaration types
+  op verify-gen : VarType Value -> Inst [ctor] .
+  eq verify-gen(natural, N) = nop .
+  eq verify-gen(integer, Int) = nop .
+  eq verify-gen(VarType, Val) = error("ERROR: Generic type incorrect") [owise] .
 
 endm
 

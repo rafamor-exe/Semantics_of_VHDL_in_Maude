@@ -4,7 +4,7 @@ fmod VHDL-IODEF-MOD is
 
   sorts IODef IOType IOValues SgDesc .
 
-  ops in out : -> IOType [ctor] .
+  ops in out inout : -> IOType [ctor] .
   ops "std_logic" "bit" : -> IOValues [ctor] .
 
   op (_$_) : IOType IOValues -> SgDesc .
@@ -85,10 +85,11 @@ fmod VHDL-INSTCOLON-MOD is
   protecting VHDL-GENERIC-MOD .
   protecting LIST{IODef} .
   protecting LIST{GenDef} .
+  
 
-  sorts Inst InstColon EntityInst EntityInstColon Port SignalName VarConstName SgAssign AExp Term Op Generic .
+  sorts Inst InstColon EntityInst EntityInstColon Port SignalName VarConstName SgDecl SgAssign AExp Term Op Generic .
   subsorts Port Generic < EntityInst .
-  subsorts EntityInst SgAssign < Inst .
+  subsorts EntityInst SgDecl SgAssign < Inst .
   *** The following order causes Advisory messages on loading the module
   ***subsorts EntityInstColon < InstColon .
   subsorts String < SignalName VarConstName .
@@ -153,6 +154,10 @@ view EntityInstColon from TRIV to VHDL-INSTCOLON-MOD is
   sort Elt to EntityInstColon .
 endv
 
+view SignalName from TRIV to VHDL-INSTCOLON-MOD is
+  sort Elt to SignalName .
+endv
+
 mod VHDLMOD is
   *** RAFAEL MORALES PALACIOS - SEMANTICS OF VHDL IN MAUDE
   
@@ -167,6 +172,7 @@ mod VHDLMOD is
   protecting MAP{String, SgDesc} .
   protecting LIST{InstColon} .
   protecting LIST{EntityInstColon} .
+  protecting LIST{SignalName} .
   
   *** Declare sorts to be used and hierarchy between them.
   sorts VHDLSim Code Signal Var Const Process Clock ScheduledInst Und Error Entity Architecture SgDescStore . ***sorts VHDLSim Code Entity Port Signal SignalName Var Const VarConstName Value Architecture Process Clock ScheduledInst Und Error .
@@ -200,7 +206,7 @@ mod VHDLMOD is
   subsorts SignalName < NeListeningList .
   subsorts EmptyList NeListeningList < ListeningList .
 
-  subsorts Entity Architecture Error < Inst .
+  subsorts Entity Architecture Process Error < Inst .
 
   ***subsorts Entity Architecture Port < Inst .
 
@@ -229,10 +235,20 @@ mod VHDLMOD is
 
 
   *** Instruction ops declarations (that include inner instruction lists)
+  
   *** - Entity
   op entity _ is _ end _ : String List{InstColon} String -> Entity [ctor] .
+  
+  *** - Architecture
   op architecture _ of _ is _ begin _ end _ : String String List{InstColon} List{InstColon} String -> Architecture [ctor] .
   
+  *** - Process
+  op process _ begin _ end process : List{SignalName} List{InstColon} -> Process [ctor] .
+
+  *** - Signal (declaration)
+  op signal _:_ : NeList{SignalName} IOValues -> SgDecl [ctor] .
+
+
   *** lookup: auxiliar op to lookup values from signal store
   op lookup : Map{String, Value} String -> Value .
   *** lookup-sg must be an eq to be able to evaluate it everywhere
@@ -278,6 +294,8 @@ mod VHDLMOD is
   var EntityIL : List{EntityInstColon} .
   var T : Time .
   var NzN : NzNat .
+  var NeSgNameL : NeList{SignalName} .
+  var SgNameL : List{SignalName} .
 
   *** TODO: Restrict values of SgSTR to StdLogic with cmb
 
@@ -297,7 +315,13 @@ mod VHDLMOD is
                 < Clk | get-gen(NeGenDefL) ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
   rl [get-gen] : < Clk | (get-gen((Str : VarType := Val ;) GenDefL)) ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
                 =>
-                < Clk | verify-gen(VarType, Val) ; get-gen(GenDefL) ; exit-block(IL) >< SchList | LstList ><< SgSTR | insert(Str, Val, VarSTR) | ConstSTR >>#< SgDescSTR > .
+                < Clk | verify-gen(VarType, Val) ; get-gen(GenDefL) ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | insert(Str, Val, ConstSTR) >>#< SgDescSTR > .
+  rl [signal] : < Clk | (signal NeSgNameL : IOValues) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
+                => 
+                < Clk | decl-sg(NeSgNameL, IOValues) ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
+  rl [decl-sg] : < Clk | decl-sg(SignalId SgNameL, IOValues) ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
+                =>
+                < Clk | decl-sg(SgNameL, IOValues) ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< insert(SignalId, ( inout $ IOValues), SgDescSTR) > .
 
 
   
@@ -347,6 +371,9 @@ mod VHDLMOD is
 
   op get-gen : List{GenDef} -> Inst [ctor] .
   eq get-gen(nil) = nop .
+
+  op decl-sg : List{SignalName} IOValues -> Inst [ctor] .
+  eq decl-sg(nil, IOValues) = nop .
 
   *** ------------
 

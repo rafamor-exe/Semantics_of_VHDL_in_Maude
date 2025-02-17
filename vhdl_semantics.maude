@@ -345,6 +345,9 @@ mod VHDLMOD is
   rl [process] : < Clk | (process SgNameL begin IL2 end process) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
                 => 
                 < Clk | IL2 end process ; exit-block(IL) >< SchList | SgNameL LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
+  rl [process-NoSensitivity] : < Clk | (process begin IL2 end process) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
+              => 
+              < Clk | IL2 end process ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
   
   rl [end-process] : < Clk | end process ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR >
                     => 

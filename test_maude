@@ -1,6 +1,6 @@
 rew lookup(("var1" |-> 1, "var2" |-> 2) , "var1") .
 
-rew entity "example_and" is EmptyList; end "example_and" .
+rew entity "example_and" is nil; end "example_and" .
 
 rew entity example_and is
   port (
@@ -17,40 +17,40 @@ rew (entity "example_and" is  port (("input_1" : in  "std_logic" ;)  ("input_2" 
 
 red insert("sg1", 'U', empty) .
 
-rew < clk(1) | (entity "example_and" is  port (("input_1" : in  "std_logic" ;)  ("input_2" : in  "std_logic" ;) ("and_result" : out "std_logic" ;)  ) ; end "example_and" ) ; nop ; >< EmptyList | nil ><< empty | empty | empty >> .
+rew < clk(1) | (entity "example_and" is  port (("input_1" : in  "std_logic" ;)  ("input_2" : in  "std_logic" ;) ("and_result" : out "std_logic" ;)  ) ; end "example_and" ) ; nop ; >< nil | nil ><< empty | empty | empty >> .
 
-rew < clk(1) | (entity "example_and" is  port (("input_1" : in  "std_logic" ;)  ("input_2" : in  "std_logic" ;) ("and_result" : out "std_logic" ;)  ) ; end "example_and" ) ; nop ; >< EmptyList | nil ><< empty | empty | empty >>#< empty > .
+rew < clk(1) | (entity "example_and" is  port (("input_1" : in  "std_logic" ;)  ("input_2" : in  "std_logic" ;) ("and_result" : out "std_logic" ;)  ) ; end "example_and" ) ; nop ; >< nil | nil ><< empty | empty | empty >>#< empty > .
 
-rew < clk(1) | ("out1" <= '1' and '0' ) ; nop ; >< EmptyList | nil ><< empty | empty | empty >>#< empty > .
+rew < clk(1) | ("out1" <= '1' and '0' ) ; nop ; >< nil | nil ><< empty | empty | empty >>#< empty > .
 
-rew < clk(0) | ("sig1" <= '1' xor '0' xor '1') >< EmptyList | nil ><< empty | empty | empty >>#< "sig1" |-> out $ "std_logic" > .
+rew < clk(0) | ("sig1" <= '1' xor '0' xor '1') >< nil | nil ><< empty | empty | empty >>#< "sig1" |-> out $ "std_logic" > .
 
 /*
-Maude> rew < clk(0) | ("sig1" <= ('1' xor '0' xor '1')) ; >< EmptyList | EmptyList ><< empty | empty | empty >>#< "sig1" |-> out $ "std_logic" > .
-rewrite in VHDLMOD : < clk(0) | ("sig1" <= ('1' xor '0' xor '1')) ; >< EmptyList | EmptyList ><< empty | empty | empty >>#< "sig1" |-> out $ "std_logic" > .
+Maude> rew < clk(0) | ("sig1" <= ('1' xor '0' xor '1')) ; >< nil | nil ><< empty | empty | empty >>#< "sig1" |-> out $ "std_logic" > .
+rewrite in VHDLMOD : < clk(0) | ("sig1" <= ('1' xor '0' xor '1')) ; >< nil | nil ><< empty | empty | empty >>#< "sig1" |-> out $ "std_logic" > .
 rewrites: 20 in 0ms cpu (0ms real) (~ rewrites/second)
-result [VHDLSim]: < clk(1) | nil >< EmptyList | EmptyList ><< "sig1" |-> '0' | empty | empty >>#< "sig1" |-> out $ "std_logic" >
-Maude> rew < clk(0) | ("sig1" <= ('1' xor '0' xor '1')) ; >< EmptyList | EmptyList ><< empty | empty | empty >>#< "sig1" |-> in $ "std_logic" > .
-rewrite in VHDLMOD : < clk(0) | ("sig1" <= ('1' xor '0' xor '1')) ; >< EmptyList | EmptyList ><< empty | empty | empty >>#< "sig1" |-> in $ "std_logic" > .
+result [VHDLSim]: < clk(1) | nil >< nil | nil ><< "sig1" |-> '0' | empty | empty >>#< "sig1" |-> out $ "std_logic" >
+Maude> rew < clk(0) | ("sig1" <= ('1' xor '0' xor '1')) ; >< nil | nil ><< empty | empty | empty >>#< "sig1" |-> in $ "std_logic" > .
+rewrite in VHDLMOD : < clk(0) | ("sig1" <= ('1' xor '0' xor '1')) ; >< nil | nil ><< empty | empty | empty >>#< "sig1" |-> in $ "std_logic" > .
 rewrites: 20 in 0ms cpu (0ms real) (~ rewrites/second)
 result InstColon: error("ERROR: Signal type incorrect") ;
 */
 
 
- rew < clk(0) | ("sig1" <= ("in1") or '0') ; >< EmptyList | nil ><< "in1" |-> '1' | empty | empty >>#< "sig1" |-> out $ "std_logic" > .
+ rew < clk(0) | ("sig1" <= ("in1") or '0') ; >< nil | nil ><< "in1" |-> '1' | empty | empty >>#< "sig1" |-> out $ "std_logic" > .
 
 
-rew < clk(1) | (entity "example_and" is generic (("N" : natural := 8 ;)) ; end "example_and" ) ; nop ; >< EmptyList | nil ><< empty | empty | empty >>#< empty > .
-rew < clk(1) | (entity "example_and" is generic ("N" : natural := 8 ;) ; port (("input_1" : in  "std_logic" ;)  ("input_2" : in  "std_logic" ;) ("and_result" : out "std_logic" ;)  ) ; end "example_and" ) ; nop ; >< EmptyList | nil ><< empty | empty | empty >>#< empty > .
+rew < clk(1) | (entity "example_and" is generic (("N" : natural := 8 ;)) ; end "example_and" ) ; nop ; >< nil | nil ><< empty | empty | empty >>#< empty > .
+rew < clk(1) | (entity "example_and" is generic ("N" : natural := 8 ;) ; port (("input_1" : in  "std_logic" ;)  ("input_2" : in  "std_logic" ;) ("and_result" : out "std_logic" ;)  ) ; end "example_and" ) ; nop ; >< nil | nil ><< empty | empty | empty >>#< empty > .
 
-rew < clk(1) | (entity "example_and" is generic (("N" : natural := -1 ;)) ; end "example_and" ) ; nop ; >< EmptyList | nil ><< empty | empty | empty >>#< empty > .
-rew < clk(1) | (entity "example_and" is generic (("N" : integer := -1 ;) ("delay" : natural := -15 ;)) ; end "example_and" ) ; nop ; >< EmptyList | nil ><< empty | empty | empty >>#< empty > .
-rew < clk(1) | (entity "example_and" is generic (("N" : integer := -1 ;) ("delay" : natural := 15 ;)) ; end "example_and" ) ; nop ; >< EmptyList | nil ><< empty | empty | empty >>#< empty > .
+rew < clk(1) | (entity "example_and" is generic (("N" : natural := -1 ;)) ; end "example_and" ) ; nop ; >< nil | nil ><< empty | empty | empty >>#< empty > .
+rew < clk(1) | (entity "example_and" is generic (("N" : integer := -1 ;) ("delay" : natural := -15 ;)) ; end "example_and" ) ; nop ; >< nil | nil ><< empty | empty | empty >>#< empty > .
+rew < clk(1) | (entity "example_and" is generic (("N" : integer := -1 ;) ("delay" : natural := 15 ;)) ; end "example_and" ) ; nop ; >< nil | nil ><< empty | empty | empty >>#< empty > .
 
-rew < clk(1) | (entity "example_and" is generic (("N" : integer := -1 ;) ("delay" : time := to-ns(1 hr) ;)) ; end "example_and" ) ; nop ; >< EmptyList | nil ><< empty | empty | empty >>#< empty > .
+rew < clk(1) | (entity "example_and" is generic (("N" : integer := -1 ;) ("delay" : time := to-ns(1 hr) ;)) ; end "example_and" ) ; nop ; >< nil | nil ><< empty | empty | empty >>#< empty > .
 
 red verify-gen(positive, 0) .
 red verify-gen(positive, 1) .
 
-rew < clk(0) | (process "A" begin nop ; end process) ; >< EmptyList | nil ><< "in1" |-> '1' | empty | empty >>#< "sig1" |-> out $ "std_logic" > .
+rew < clk(0) | (process "A" begin nop ; end process) ; >< nil | nil ><< "in1" |-> '1' | empty | empty >>#< "sig1" |-> out $ "std_logic" > .
 rew (process "A" begin nop ; end process) ; .

@@ -158,6 +158,23 @@ view SignalName from TRIV to VHDL-INSTCOLON-MOD is
   sort Elt to SignalName .
 endv
 
+fmod VHDL-SCHEDULE-MOD is
+
+  protecting VHDL-VALUE-MOD .
+  protecting VHDL-INSTCOLON-MOD .
+
+  sorts ScheduledInst .
+
+  *** An ScheduledInst contains the instruction to be executed and the delay
+  *** TODO: check if it would be more accurate to just delay an assignment (delay,sg,value)
+  op {delay _, inst _} : Time InstColon -> ScheduledInst [ctor] .
+
+endfm
+
+view ScheduledInst from TRIV to VHDL-SCHEDULE-MOD is
+  sort Elt to ScheduledInst .
+endv
+
 mod VHDLMOD is
   *** RAFAEL MORALES PALACIOS - SEMANTICS OF VHDL IN MAUDE
   
@@ -173,9 +190,10 @@ mod VHDLMOD is
   protecting LIST{InstColon} .
   protecting LIST{EntityInstColon} .
   protecting LIST{SignalName} .
+  protecting LIST{ScheduledInst} .
   
   *** Declare sorts to be used and hierarchy between them.
-  sorts VHDLSim Code Signal Var Const Clock ScheduledInst Und Error Entity Architecture SgDescStore . ***sorts VHDLSim Code Entity Port Signal SignalName Var Const VarConstName Value Architecture Process Clock ScheduledInst Und Error .
+  sorts VHDLSim Code Signal Var Const Clock Und Error Entity Architecture SgDescStore . ***sorts VHDLSim Code Entity Port Signal SignalName Var Const VarConstName Value Architecture Process Clock ScheduledInst Und Error .
   sorts Process ProcessSensitivity ProcessNoSensitivity .
   sorts EmptyList InstBlock StructuredInstList . ***sorts Inst EmptyList NeList{Inst} List{Inst} InstBlock StructuredInstList .
   sorts NeScheduleList ScheduleList NeListeningList ListeningList .
@@ -202,11 +220,12 @@ mod VHDLMOD is
 
   subsorts List{InstColon} StructuredInstList < Code .
 
-  subsorts ScheduledInst < NeScheduleList .
-  subsorts EmptyList NeScheduleList < ScheduleList .
+  ***subsorts ScheduledInst < NeScheduleList .
+  ***subsorts EmptyList NeScheduleList < ScheduleList .
   ***subsorts SignalName < NeListeningList .
   ***subsorts EmptyList NeListeningList < ListeningList .
   subsorts ListeningList < List{SignalName} .
+  subsorts ScheduleList < List{ScheduledInst} .
 
   subsorts ProcessSensitivity ProcessNoSensitivity < Process .
   subsorts Entity Architecture Process Error < Inst .
@@ -285,7 +304,7 @@ mod VHDLMOD is
   var Clk : Clock .
   var N : Nat .
   var Int : Int .
-  var SchList : ScheduleList .
+  var SchList : List{ScheduledInst} .
   var LstList : List{SignalName} .
   var NeIODefL : NeList{IODef} .
   var IODef : IODef .

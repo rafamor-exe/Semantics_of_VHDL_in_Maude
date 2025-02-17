@@ -175,7 +175,8 @@ mod VHDLMOD is
   protecting LIST{SignalName} .
   
   *** Declare sorts to be used and hierarchy between them.
-  sorts VHDLSim Code Signal Var Const Process Clock ScheduledInst Und Error Entity Architecture SgDescStore . ***sorts VHDLSim Code Entity Port Signal SignalName Var Const VarConstName Value Architecture Process Clock ScheduledInst Und Error .
+  sorts VHDLSim Code Signal Var Const Clock ScheduledInst Und Error Entity Architecture SgDescStore . ***sorts VHDLSim Code Entity Port Signal SignalName Var Const VarConstName Value Architecture Process Clock ScheduledInst Und Error .
+  sorts Process ProcessSensitivity ProcessNoSensitivity .
   sorts EmptyList InstBlock StructuredInstList . ***sorts Inst EmptyList NeList{Inst} List{Inst} InstBlock StructuredInstList .
   sorts NeScheduleList ScheduleList NeListeningList ListeningList .
   sorts Assign SignalAssign VarConstAssign .
@@ -203,9 +204,11 @@ mod VHDLMOD is
 
   subsorts ScheduledInst < NeScheduleList .
   subsorts EmptyList NeScheduleList < ScheduleList .
-  subsorts SignalName < NeListeningList .
-  subsorts EmptyList NeListeningList < ListeningList .
+  ***subsorts SignalName < NeListeningList .
+  ***subsorts EmptyList NeListeningList < ListeningList .
+  subsorts ListeningList < List{SignalName} .
 
+  subsorts ProcessSensitivity ProcessNoSensitivity < Process .
   subsorts Entity Architecture Process Error < Inst .
 
   ***subsorts Entity Architecture Port < Inst .
@@ -238,12 +241,17 @@ mod VHDLMOD is
   
   *** - Entity
   op entity _ is _ end _ : String List{InstColon} String -> Entity [ctor] .
+  op entity _ is end _ : String String -> Entity [ctor] .
   
   *** - Architecture
   op architecture _ of _ is _ begin _ end _ : String String List{InstColon} List{InstColon} String -> Architecture [ctor] .
   
   *** - Process
-  op process _ begin _ end process : List{SignalName} List{InstColon} -> Process [ctor] .
+  *** TODO: Variable assignment possibility before begin not included
+  op process _ begin _ end process : List{SignalName} List{InstColon} -> ProcessSensitivity [ctor] .
+  op process begin _ end process : List{InstColon} -> ProcessNoSensitivity [ctor] .
+  op end process : -> Inst [ctor] .
+
 
   *** - Signal (declaration)
   op signal _:_ : NeList{SignalName} IOValues -> SgDecl [ctor] .
@@ -278,7 +286,7 @@ mod VHDLMOD is
   var N : Nat .
   var Int : Int .
   var SchList : ScheduleList .
-  var LstList : ListeningList .
+  var LstList : List{SignalName} .
   var NeIODefL : NeList{IODef} .
   var IODef : IODef .
   var IOType : IOType .
@@ -305,6 +313,9 @@ mod VHDLMOD is
   rl [entity] : < Clk | (entity Str is IL1 end Str) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
                 => 
                 < Clk | IL1 exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
+  rl [entity-noIL] : < Clk | (entity Str is end Str) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
+              => 
+              < Clk | IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
   ***crl [entity-err] : < Clk | (entity Str is IL1 end Str2) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >> => error("ERROR: Entity name mismatch") if Str =/= Str2 .
 
   rl [port] : < Clk | (port(NeIODefL)) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > => < Clk | get-port-sg(NeIODefL) ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
@@ -322,8 +333,6 @@ mod VHDLMOD is
   rl [decl-sg] : < Clk | decl-sg(SignalId SgNameL, IOValues) ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
                 =>
                 < Clk | decl-sg(SgNameL, IOValues) ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< insert(SignalId, ( inout $ IOValues), SgDescSTR) > .
-
-
   
   rl [architecture] : < Clk | (architecture Str of Str2 is IL1 begin IL2 end Str) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > => < Clk | IL1 exit-block(IL2 exit-block(IL)) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
 
@@ -331,6 +340,17 @@ mod VHDLMOD is
   rl [assign-sg-val] :  < clk(N) | (SignalId <= StdLogicVal) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
                     => 
                     < clk(N + 1) | verify-sg(out, SignalId, SgDescSTR) ; IL >< SchList | LstList ><< insert(SignalId, StdLogicVal, SgSTR) | VarSTR | ConstSTR >>#< SgDescSTR > .
+  
+  *** TODO: Make LstList so that it can have SgNameL [LstList] to keep track of nested processes' LstLists?
+  rl [process] : < Clk | (process SgNameL begin IL2 end process) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
+                => 
+                < Clk | IL2 end process ; exit-block(IL) >< SchList | SgNameL LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
+  
+  rl [end-process] : < Clk | end process ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR >
+                    => 
+                    < Clk | exit-block(IL) >< SchList | nil ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
+  
+  
   rl [lookup-sg] :  < clk(N) | (SignalId <= SignalId1 Op AExp1) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
                   => 
                   < clk(N) | (SignalId <= lookup-sg(SgSTR, SignalId1) Op AExp1) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .

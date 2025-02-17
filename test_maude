@@ -51,3 +51,5 @@ rew < clk(1) | (entity "example_and" is generic (("N" : integer := -1 ;) ("delay
 
 red verify-gen(positive, 0) .
 red verify-gen(positive, 1) .
+
+rew (process "A" begin nop ; end process); .

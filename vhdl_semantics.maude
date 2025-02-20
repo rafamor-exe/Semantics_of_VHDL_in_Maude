@@ -26,11 +26,19 @@ fmod VHDL-VALUE-MOD is
   protecting RAT .
   protecting STRING .
 
-  sorts StdLogic Value Bit .
-  sorts Time TimeUnit .
-  subsorts Int StdLogic Time < Value .
-  subsorts Bit < StdLogic .
+  sorts StdLogic Value IntVal StdLogicVal TimeVal NatVal .
+  sorts Time TimeUnit Bit .
+  subsorts NatVal IntVal StdLogicVal TimeVal < Value . *** checkear. añadir un wrapper a los tipos
+  subsorts Bit < StdLogic < StdLogicVal .
+
+  ***subsorts Int < IntVal .
   ***subsorts StdLogic < Value .
+
+  op intVal : Int -> IntVal [ctor] .
+  op stdlogicVal : StdLogic -> StdLogicVal [ctor] .
+  op timeVal : Time -> TimeVal [ctor] .
+  op natVal : Nat -> NatVal [ctor] .
+
 
   *** Bit logic
 
@@ -93,7 +101,7 @@ fmod VHDL-INSTCOLON-MOD is
   *** The following order causes Advisory messages on loading the module
   ***subsorts EntityInstColon < InstColon .
   subsorts String < SignalName VarConstName .
-  subsorts Int StdLogic < AExp .
+  subsorts Int StdLogicVal < AExp .
 
   ops and or xand sg-xor : -> Op [ctor] . 
   ***op _ _ _ : Term Op AExp -> AExp [ctor] .
@@ -116,31 +124,31 @@ fmod VHDL-INSTCOLON-MOD is
   *** - Generic
   op generic (_) : NeList{GenDef} -> Generic [ctor] .
 
-  vars StdLogicVal1 : StdLogic .
+  vars StdLogicVal1 : StdLogicVal .
   vars AExp1 AExp2 : AExp .
   op ___ : AExp Op AExp -> AExp [ctor] .
 
   op not_ : AExp -> AExp [ctor] .
-  ceq not AExp1 = '0' if AExp1 == '1' .
-  ceq not AExp1 = '1' if AExp1 == '0' .
-  ceq not AExp1 = 'U' if AExp1 == 'U' .
+  ceq not AExp1 = stdlogicVal('0') if AExp1 == stdlogicVal('1') .
+  ceq not AExp1 = stdlogicVal('1') if AExp1 == stdlogicVal('0') .
+  ceq not AExp1 = stdlogicVal('U') if AExp1 == stdlogicVal('U') .
   ***op _or_ : StdLogic AExp -> AExp [ctor] .
-  eq '1' or AExp1 = '1' .
-  eq '0' or AExp1 = AExp1 .
-  eq 'U' or AExp1 = AExp1 .
+  eq stdlogicVal('1') or AExp1 = stdlogicVal('1') .
+  eq stdlogicVal('0') or AExp1 = AExp1 .
+  eq stdlogicVal('U') or AExp1 = AExp1 .
   ***op _and_ : StdLogic AExp -> AExp [ctor] .
-  eq '1' and AExp1 = AExp1 .
-  eq '0' and AExp1 =  '0' .
-  eq 'U' and AExp1 = 'U' .
+  eq stdlogicVal('1') and AExp1 = AExp1 .
+  eq stdlogicVal('0') and AExp1 =  stdlogicVal('0') .
+  eq stdlogicVal('U') and AExp1 = stdlogicVal('U') .
   op _xor_ : AExp AExp -> AExp [ditto ctor] .
-  ceq AExp1 xor AExp2 = '1' if AExp1 =/= AExp2 /\ (AExp1 == '1' or AExp2 == '1') .
-  eq AExp1 xor AExp2 =  '0' [owise] .
+  ceq AExp1 xor AExp2 = stdlogicVal('1') if AExp1 =/= AExp2 /\ (AExp1 == stdlogicVal('1') or AExp2 == stdlogicVal('1')) .
+  eq AExp1 xor AExp2 =  stdlogicVal('0') [owise] .
   ***op _xand_ : AExp AExp -> AExp [ctor] .
-  ceq AExp1 xand AExp2 = '1' if AExp1 == AExp2 .
-  eq AExp1 xand AExp2 =  '0' [owise] .
+  ceq AExp1 xand AExp2 = stdlogicVal('1') if AExp1 == AExp2 .
+  eq AExp1 xand AExp2 =  stdlogicVal('0') [owise] .
 
-  ceq StdLogicVal1 sg-xor AExp2 = '1' if StdLogicVal1 =/= AExp2 /\ (StdLogicVal1 == '1' or AExp2 == '1') .
-  eq StdLogicVal1 sg-xor AExp2 =  '0' [owise] .
+  ceq StdLogicVal1 sg-xor AExp2 = stdlogicVal('1') if StdLogicVal1 =/= AExp2 /\ (StdLogicVal1 == stdlogicVal('1') or AExp2 == stdlogicVal('1')) .
+  eq StdLogicVal1 sg-xor AExp2 =  stdlogicVal('0') [owise] .
 
   op _ <= _ : SignalName AExp -> SgAssign [ctor] .
 
@@ -279,7 +287,7 @@ mod VHDLMOD is
   *** lookup: auxiliar op to lookup values from signal store
   op lookup : Map{String, Value} String -> Value .
   *** lookup-sg must be an eq to be able to evaluate it everywhere
-  op lookup-sg : Map{String, Value} SignalName -> StdLogic .
+  op lookup-sg : Map{String, Value} SignalName -> StdLogicVal .
 
 
   ***op _[_] : List{InstColon} List{InstColon} -> StructuredInstList [ctor].
@@ -303,7 +311,9 @@ mod VHDLMOD is
   var Str Str2 : String .
   var Clk : Clock .
   var N : Nat .
+  var NVal : NatVal .
   var Int : Int .
+  var IntVal : IntVal .
   var SchList : List{ScheduledInst} .
   var LstList : List{SignalName} .
   var NeIODefL : NeList{IODef} .
@@ -311,7 +321,7 @@ mod VHDLMOD is
   var IOType : IOType .
   var IOValues : IOValues .
   var IODefL : List{IODef} .
-  var StdLogicVal : StdLogic .
+  var StdLogicVal : StdLogicVal .
   var AExp1 : AExp .
   var Error : Error .
   vars Op : Op .
@@ -320,6 +330,7 @@ mod VHDLMOD is
   var GenDefL : List{GenDef} .
   var EntityIL : List{EntityInstColon} .
   var T : Time .
+  var TVal : TimeVal .
   var NzN : NzNat .
   var NeSgNameL : NeList{SignalName} .
   var SgNameL : List{SignalName} .
@@ -448,9 +459,9 @@ mod VHDLMOD is
   
   *** verify-gen : auxiliar op to verify generic declaration types
   op verify-gen : VarType Value -> Inst [ctor] .
-  eq verify-gen(natural, N) = nop .
-  eq verify-gen(integer, Int) = nop .
-  eq verify-gen(time, T) = nop .
+  eq verify-gen(natural, NVal) = nop .
+  eq verify-gen(integer, IntVal) = nop .
+  eq verify-gen(time, TVal) = nop .
   eq verify-gen(positive, NzN) = nop .
   eq verify-gen(VarType, Val) = error("ERROR: Generic type incorrect") [owise] .
 

@@ -1,0 +1,6 @@
+- Values require a wrapper:
+    - natural : natVal(V)
+    - integer : intVal(V)
+    - time : timeVal(V)
+    - stdLogic : stdlogicVal(V)
+    (where V is teh corresponding value)

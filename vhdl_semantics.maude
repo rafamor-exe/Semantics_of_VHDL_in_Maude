@@ -335,6 +335,11 @@ mod VHDLMOD is
   var NeSgNameL : NeList{SignalName} .
   var SgNameL : List{SignalName} .
 
+  *** An entity declared without instructions is equivalent to an entity with an empty list of instructions
+  eq entity Str is end Str = entity Str is nil end Str .
+  *** A process declared without a sensitivity list is equal to the process with an empty sensitivity list 
+  eq process begin IL end process = process nil begin IL end process .
+
   *** TODO: Restrict values of SgSTR to StdLogic with cmb
 
   ***_:__; : String IOType IOValues
@@ -343,9 +348,9 @@ mod VHDLMOD is
   rl [entity] : < Clk | (entity Str is IL1 end Str) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
                 => 
                 < Clk | IL1 exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
-  rl [entity-noIL] : < Clk | (entity Str is end Str) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
-              => 
-              < Clk | IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
+  ***rl [entity-noIL] : < Clk | (entity Str is end Str) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
+  ***            => 
+  ***            < Clk | IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
   ***crl [entity-err] : < Clk | (entity Str is IL1 end Str2) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >> => error("ERROR: Entity name mismatch") if Str =/= Str2 .
 
   rl [port] : < Clk | (port(NeIODefL)) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > => < Clk | get-port-sg(NeIODefL) ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
@@ -375,9 +380,9 @@ mod VHDLMOD is
   rl [process] : < Clk | (process SgNameL begin IL2 end process) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
                 => 
                 < Clk | IL2 end process ; exit-block(IL) >< SchList | SgNameL LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
-  rl [process-NoSensitivity] : < Clk | (process begin IL2 end process) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
-              => 
-              < Clk | IL2 end process ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
+  ***rl [process-NoSensitivity] : < Clk | (process begin IL2 end process) ; IL >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
+  ***            => 
+  ***            < Clk | IL2 end process ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
   
   rl [end-process] : < Clk | end process ; exit-block(IL) >< SchList | LstList ><< SgSTR | VarSTR | ConstSTR >>#< SgDescSTR >
                     => 

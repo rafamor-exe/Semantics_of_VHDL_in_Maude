@@ -4,3 +4,4 @@ TODO:
 - Include rule to end parse part
 - Store SchList copy when finished parsing so that it can be copied when T+delta behaviour simulation is needed
 - Adapt assignments to new modelization
+- Adapt tests

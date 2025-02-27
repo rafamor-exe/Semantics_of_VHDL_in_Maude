@@ -1,4 +1,6 @@
-TODO: 
+TODO:
+- [IMP] [WIP] Rules for parsing not reducing...
+- [WIP] Execution steps + adapt rules parsing/prepare for sim
 - Modify [end-sim-cycle-delta] so that the schedule list is repeated for T+delta if the state of the variables has changed
        - Consider having this checked in advance, so that it does not have to be executed N+1 times to check the state is mantained?? 
 - Include rule to end parse part

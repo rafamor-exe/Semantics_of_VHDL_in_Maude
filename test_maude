@@ -58,3 +58,6 @@ rew (process "A" begin nop ; end process) ; .
 
 rew < clk(0 ns) | ("sig1" <= (stdlogicVal('1') xor stdlogicVal('0') xor stdlogicVal('1'))) ; >< nil | nil ><< empty | empty | empty >>#< "sig1" |-> out $ "std_logic" > .
 rew < clk(0 ns) | ("sig1" <= ("in1") or '0') ; >< nil | nil ><< "in1" |-> stdlogicVal('1') | empty | empty >>#< "sig1" |-> out $ "std_logic" > .
+
+*** [NEW SYNTAX TESTS]
+rew run((entity "example_and" is end "example_and" ) ;, nil) .

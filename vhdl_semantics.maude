@@ -436,20 +436,27 @@ mod VHDLMOD is
   rl [parse-port] : [ (port(NeIODefL)) ; IL => SchList ] Stores
                     => 
                     [ get-port-sg(NeIODefL) ; exit-block(IL) => SchList ] Stores .
-  ***rl [get-port-sg] : < Clk | (get-port-sg((Str : IOType IOValues ;) IODefL)) ; exit-block(IL) >< TControlSect > << ValStores >>#< SgDescSTR > 
-  ***                   => 
-  ***                   < Clk | get-port-sg(IODefL) ; exit-block(IL) >< TControlSect > << ValStores >>#< insert(Str, ( IOType $ IOValues), SgDescSTR) > .
   rl [parse-get-port-sg] : [ (get-port-sg((Str : IOType IOValues ;) IODefL)) ; exit-block(IL) => SchList ] << ValStores >>#< SgDescSTR > 
                      => 
                      [ get-port-sg(IODefL) ; exit-block(IL) => SchList ] << ValStores >>#< insert(Str, ( IOType $ IOValues), SgDescSTR) > .
   ***-----
   ***rl [get-port-sg-empty] : < Clk | (get-port-sg(nil)) ; exit-block(IL) >< TControlSect > << ValStores >>#< SgDescSTR > => < Clk | exit-block(IL) >< TControlSect > << ValStores >>#< SgDescSTR > .
-  rl [generic] : < Clk | (generic(NeGenDefL)) ; IL >< TControlSect > << ValStores >>#< SgDescSTR > 
+  ***rl [get-port-sg] : < Clk | (get-port-sg((Str : IOType IOValues ;) IODefL)) ; exit-block(IL) >< TControlSect > << ValStores >>#< SgDescSTR > 
+  ***                   => 
+  ***                   < Clk | get-port-sg(IODefL) ; exit-block(IL) >< TControlSect > << ValStores >>#< insert(Str, ( IOType $ IOValues), SgDescSTR) > .
+  ***rl [generic] : < Clk | (generic(NeGenDefL)) ; IL >< TControlSect > << ValStores >>#< SgDescSTR > 
+  ***               => 
+  ***              < Clk | get-gen(NeGenDefL) ; exit-block(IL) >< TControlSect > << ValStores >>#< SgDescSTR > .
+  ***rl [get-gen] : < Clk | (get-gen((Str : VarType := Val ;) GenDefL)) ; exit-block(IL) >< TControlSect > << SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
+  ***             =>
+  ***             < Clk | verify-gen(VarType, Val) ; get-gen(GenDefL) ; exit-block(IL) >< TControlSect > << SgSTR | VarSTR | insert(Str, Val, ConstSTR) >>#< SgDescSTR > .
+  
+  rl [parse-generic] : [ (generic(NeGenDefL)) ; IL => SchList ] Stores
                 => 
-                < Clk | get-gen(NeGenDefL) ; exit-block(IL) >< TControlSect > << ValStores >>#< SgDescSTR > .
-  rl [get-gen] : < Clk | (get-gen((Str : VarType := Val ;) GenDefL)) ; exit-block(IL) >< TControlSect > << SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
+                [ get-gen(NeGenDefL) ; exit-block(IL) => SchList ] Stores .
+  rl [parse-get-gen] : [ (get-gen((Str : VarType := Val ;) GenDefL)) ; exit-block(IL) => SchList ] << SgSTR | VarSTR | ConstSTR >>#< SgDescSTR >
                 =>
-                < Clk | verify-gen(VarType, Val) ; get-gen(GenDefL) ; exit-block(IL) >< TControlSect > << SgSTR | VarSTR | insert(Str, Val, ConstSTR) >>#< SgDescSTR > .
+                [ verify-gen(VarType, Val) ; get-gen(GenDefL) ; exit-block(IL) => SchList ] << SgSTR | VarSTR | insert(Str, Val, ConstSTR) >>#< SgDescSTR > .
   rl [signal] : < Clk | (signal NeSgNameL : IOValues) ; IL >< TControlSect > << ValStores >>#< SgDescSTR > 
                 => 
                 < Clk | decl-sg(NeSgNameL, IOValues) ; exit-block(IL) >< TControlSect > << ValStores >>#< SgDescSTR > .

@@ -237,22 +237,22 @@ mod VHDLMOD is
   protecting LIST{Transaction} .
   
   *** Declare sorts to be used and hierarchy between them.
-  sorts VHDLSim Parser ParserTime Code Signal Var Const Clock SimClock ClockPrev Und Error Entity Architecture SgDescStore TimeControlSection ValueStores DescStores . ***sorts VHDLSim Code Entity Port Signal SignalName Var Const VarConstName Value Architecture Process Clock ScheduledInst Und Error .
+  sorts VHDLSim Parser ParserTime ParserInsts Code Signal Var Const Clock SimClock ClockPrev Und Error Entity Architecture SgDescStore TimeControlSection ValueStores DescStores . ***sorts VHDLSim Code Entity Port Signal SignalName Var Const VarConstName Value Architecture Process Clock ScheduledInst Und Error .
   sorts Process ProcessSensitivity ProcessNoSensitivity .
   sorts EmptyList InstBlock StructuredInstList . ***sorts Inst EmptyList NeList{Inst} List{Inst} InstBlock StructuredInstList .
   sorts EventSchList .
   sorts NeScheduleList ScheduleList NeListeningList ListeningList .
   sorts Assign SignalAssign VarConstAssign .
-  sorts Stores Store NeStore SignalStore VarStore ConstStore .
+  sorts Stores NeStore SignalStore VarStore ConstStore .
   sorts EmptyStore NeSignalStore NeVarStore NeConstStore .
 
 
   *** Simulator components
   subsorts Code < VHDLSim .
   
-  subsorts VarStore ConstStore < Map{String, Value} .
-  subsorts SignalStore < Map{SgTimeTuple, Value} .
-  subsorts SgDescStore < Map{String, SgDesc} .
+  ***subsorts VarStore ConstStore < Map{String, Value} .
+  ***subsorts SignalStore < Map{SgTimeTuple, Value} .
+  ***subsorts SgDescStore < Map{String, SgDesc} .
   ***subsorts NeSignalStore NeVarStore NeConstStore < NeStore .
   ***subsorts EmptyStore NeSignalStore < SignalStore .
   ***subsorts EmptyStore NeVarStore < VarStore .
@@ -282,13 +282,15 @@ mod VHDLMOD is
   op EmptyList : -> EmptyList [ctor] .
   op error : String -> Error [ctor] .
 
-  op _|_|_ : ScheduleList ListeningList EventSchList -> TimeControlSection [ctor] .
-  op _|_|_ : SignalStore VarStore ConstStore -> ValueStores [ctor] .
-  op _ : SgDescStore -> DescStores [ctor] .
+  op _||_||_ : ScheduleList ListeningList EventSchList -> TimeControlSection [ctor] .
+  op << _ | _ | _ >> : Map{SgTimeTuple, Value} Map{String, Value} Map{String, Value} -> ValueStores [ctor] .
+  op < _ > : Map{String, SgDesc} -> DescStores [ctor] .
 
-  op <<_>>#<_> : ValueStores SgDescStore -> Stores [ctor] .
+  op _ # _ : ValueStores DescStores -> Stores [ctor] .
 
-  op [ _ => _ ]_ : List{InstColon} List{ScheduledInst} Stores -> Parser [ctor] .
+  op [_->_] : List{InstColon} List{ScheduledInst} -> ParserInsts [ctor] .
+
+  op _ _ : ParserInsts Stores -> Parser [ctor] .
   op _ < events: _ > : Parser EventSchList -> ParserTime [ctor] .
 
   *** Code represents a whole VHDL file. Rules will be needed for each code statement/block
@@ -389,24 +391,25 @@ mod VHDLMOD is
   var TControlSect : TimeControlSection .
   var ValStores : ValueStores .
   var SignalState : SignalState .
-  var Stores : Stores .
+  var StoresVar : Stores .
+  var DescStores : DescStores .
 
   *** Workflow: run(IL, EventSchList) -> Parse -> insitSimArch -> Simulation Loop
   op run : List{InstColon} List{Transaction} -> ParserTime [ctor] .
   eq run(IL, EventSchList) = parse(IL) < events: EventSchList > .
 
   op parse : List{InstColon} -> Parser [ctor] .
-  eq parse(IL) = [ IL => nil ] << empty | empty | empty >>#< empty > .
+  eq parse(IL) = [ IL -> nil ] << empty | empty | empty >> # < empty > .
 
   op initSimArch : ParserTime -> VHDLSim .
-  eq initSimArch([ nil => SchList ] << SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > < events: EventSchList >) = < clk(0 ns) [prev: clk(0 ns)] | nil >< SchList | nil | EventSchList > << insertDefault(SgDescSTR, empty) | VarSTR | ConstSTR >>#< SgDescSTR > .
+  eq initSimArch([ nil -> SchList ] << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > < events: EventSchList >) = < clk(0 ns) [prev: clk(0 ns)] | nil >< SchList || nil || EventSchList > << insertDefault(SgDescSTR, empty) | VarSTR | ConstSTR >> # < SgDescSTR > .
 
   op insertDefault : Map{String, SgDesc} Map{SgTimeTuple, Value} -> Map{SgTimeTuple, Value} .
   eq insertDefault(SignalId |-> ( IOType $ IOValues ), SgSTR) = insert({sgName SignalId, time 0 ns}, default(IOValues),  SgSTR) .
   eq insertDefault((SignalId |-> ( IOType $ IOValues ), SgDescSTR), SgSTR) = insert({sgName SignalId, time 0 ns}, default(IOValues),  SgSTR) .
 
   ***op initSim : List{InstColon} List{Transaction} -> VHDLSim [ctor] .
-  ***eq initSim(IL, EventSchList) = < clk(0 ns) [prev: clk(0 ns)] | IL >< nil | nil | EventSchList > << empty | empty | empty >>#< empty > .
+  ***eq initSim(IL, EventSchList) = < clk(0 ns) [prev: clk(0 ns)] | IL >< nil | nil | EventSchList > << empty | empty | empty >> # < empty > .
 
   *** An entity declared without instructions is equivalent to an entity with an empty list of instructions
   eq entity Str is end Str = entity Str is nil end Str .
@@ -418,101 +421,107 @@ mod VHDLMOD is
   ***_:__; : String IOType IOValues
 
   *** Rules
-  ***rl [entity] : < Clk | (entity Str is IL1 end Str) ; IL >< TControlSect > << ValStores >>#< SgDescSTR > 
+  ***rl [entity] : < Clk | (entity Str is IL1 end Str) ; IL >< TControlSect > ValStores # DescStores 
   ***              => 
-  ***              < Clk | IL1 exit-block(IL) >< TControlSect > << ValStores >>#< SgDescSTR > .
-  rl [parse-entity] : [ (entity Str is IL1 end Str) ; IL => SchList ] Stores
+  ***              < Clk | IL1 exit-block(IL) >< TControlSect > ValStores # DescStores .
+  rl [parse-entity] : [ (entity Str is IL1 end Str) ; IL -> SchList ]
                       => 
-                      [ IL1 exit-block(IL) => SchList ] Stores .
+                      [ IL1 exit-block(IL) -> SchList ] .
   
-  ***rl [entity-noIL] : < Clk | (entity Str is end Str) ; IL >< TControlSect > << ValStores >>#< SgDescSTR > 
+  ***rl [entity-noIL] : < Clk | (entity Str is end Str) ; IL >< TControlSect > ValStores # DescStores 
   ***            => 
-  ***            < Clk | IL >< TControlSect > << ValStores >>#< SgDescSTR > .
-  ***crl [entity-err] : < Clk | (entity Str is IL1 end Str2) ; IL >< TControlSect > << ValStores >> => error("ERROR: Entity name mismatch") if Str =/= Str2 .
+  ***            < Clk | IL >< TControlSect > ValStores # DescStores .
+  ***crl [entity-err] : < Clk | (entity Str is IL1 end Str2) ; IL >< TControlSect > ValStores => error("ERROR: Entity name mismatch") if Str =/= Str2 .
 
-  ***rl [port] : < Clk | (port(NeIODefL)) ; IL >< TControlSect > << ValStores >>#< SgDescSTR > 
+  ***rl [port] : < Clk | (port(NeIODefL)) ; IL >< TControlSect > ValStores # DescStores 
   ***            => 
-  ***            < Clk | get-port-sg(NeIODefL) ; exit-block(IL) >< TControlSect > << ValStores >>#< SgDescSTR > .
-  rl [parse-port] : [ (port(NeIODefL)) ; IL => SchList ] Stores
+  ***            < Clk | get-port-sg(NeIODefL) ; exit-block(IL) >< TControlSect > ValStores # DescStores .
+  rl [parse-port] : [ (port(NeIODefL)) ; IL -> SchList ]
                     => 
-                    [ get-port-sg(NeIODefL) ; exit-block(IL) => SchList ] Stores .
-  rl [parse-get-port-sg] : [ (get-port-sg((Str : IOType IOValues ;) IODefL)) ; exit-block(IL) => SchList ] << ValStores >>#< SgDescSTR > 
+                    [ get-port-sg(NeIODefL) ; exit-block(IL) -> SchList ] .
+  rl [parse-get-port-sg] : [ (get-port-sg((Str : IOType IOValues ;) IODefL)) ; exit-block(IL) -> SchList ] ValStores # < SgDescSTR > 
                      => 
-                     [ get-port-sg(IODefL) ; exit-block(IL) => SchList ] << ValStores >>#< insert(Str, ( IOType $ IOValues), SgDescSTR) > .
+                     [ get-port-sg(IODefL) ; exit-block(IL) -> SchList ] ValStores # < insert(Str, ( IOType $ IOValues), SgDescSTR) > .
   ***-----
-  ***rl [get-port-sg-empty] : < Clk | (get-port-sg(nil)) ; exit-block(IL) >< TControlSect > << ValStores >>#< SgDescSTR > => < Clk | exit-block(IL) >< TControlSect > << ValStores >>#< SgDescSTR > .
-  ***rl [get-port-sg] : < Clk | (get-port-sg((Str : IOType IOValues ;) IODefL)) ; exit-block(IL) >< TControlSect > << ValStores >>#< SgDescSTR > 
+  ***rl [get-port-sg-empty] : < Clk | (get-port-sg(nil)) ; exit-block(IL) >< TControlSect > ValStores # DescStores => < Clk | exit-block(IL) >< TControlSect > ValStores # DescStores .
+  ***rl [get-port-sg] : < Clk | (get-port-sg((Str : IOType IOValues ;) IODefL)) ; exit-block(IL) >< TControlSect > ValStores # DescStores 
   ***                   => 
-  ***                   < Clk | get-port-sg(IODefL) ; exit-block(IL) >< TControlSect > << ValStores >>#< insert(Str, ( IOType $ IOValues), SgDescSTR) > .
-  ***rl [generic] : < Clk | (generic(NeGenDefL)) ; IL >< TControlSect > << ValStores >>#< SgDescSTR > 
+  ***                   < Clk | get-port-sg(IODefL) ; exit-block(IL) >< TControlSect > ValStores # < insert(Str, ( IOType $ IOValues), SgDescSTR) > .
+  ***rl [generic] : < Clk | (generic(NeGenDefL)) ; IL >< TControlSect > ValStores # DescStores 
   ***               => 
-  ***              < Clk | get-gen(NeGenDefL) ; exit-block(IL) >< TControlSect > << ValStores >>#< SgDescSTR > .
-  ***rl [get-gen] : < Clk | (get-gen((Str : VarType := Val ;) GenDefL)) ; exit-block(IL) >< TControlSect > << SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
+  ***              < Clk | get-gen(NeGenDefL) ; exit-block(IL) >< TControlSect > ValStores # DescStores .
+  ***rl [get-gen] : < Clk | (get-gen((Str : VarType := Val ;) GenDefL)) ; exit-block(IL) >< TControlSect > << SgSTR | VarSTR | ConstSTR >> # DescStores 
   ***             =>
-  ***             < Clk | verify-gen(VarType, Val) ; get-gen(GenDefL) ; exit-block(IL) >< TControlSect > << SgSTR | VarSTR | insert(Str, Val, ConstSTR) >>#< SgDescSTR > .
+  ***             < Clk | verify-gen(VarType, Val) ; get-gen(GenDefL) ; exit-block(IL) >< TControlSect > << SgSTR | VarSTR | insert(Str, Val, ConstSTR) >> # DescStores .
   
-  rl [parse-generic] : [ (generic(NeGenDefL)) ; IL => SchList ] Stores
+  rl [parse-generic] : [ (generic(NeGenDefL)) ; IL -> SchList ]
                 => 
-                [ get-gen(NeGenDefL) ; exit-block(IL) => SchList ] Stores .
-  rl [parse-get-gen] : [ (get-gen((Str : VarType := Val ;) GenDefL)) ; exit-block(IL) => SchList ] << SgSTR | VarSTR | ConstSTR >>#< SgDescSTR >
+                [ get-gen(NeGenDefL) ; exit-block(IL) -> SchList ] .
+  crl [parse-get-gen] : [ (get-gen((Str : VarType := Val ;) GenDefL)) ; exit-block(IL) -> SchList ] << SgSTR | VarSTR | ConstSTR >> # DescStores
                 =>
-                [ verify-gen(VarType, Val) ; get-gen(GenDefL) ; exit-block(IL) => SchList ] << SgSTR | VarSTR | insert(Str, Val, ConstSTR) >>#< SgDescSTR > .
-  ***rl [signal] : < Clk | (signal NeSgNameL : IOValues) ; IL >< TControlSect > << ValStores >>#< SgDescSTR > 
+                [ get-gen(GenDefL) ; exit-block(IL) -> SchList ] << SgSTR | VarSTR | insert(Str, Val, ConstSTR) >> # DescStores 
+                if verify-gen(VarType, Val) .
+  ***rl [signal] : < Clk | (signal NeSgNameL : IOValues) ; IL >< TControlSect > ValStores # DescStores 
   ***              => 
-  ***              < Clk | decl-sg(NeSgNameL, IOValues) ; exit-block(IL) >< TControlSect > << ValStores >>#< SgDescSTR > .
-  rl [parse-signal] : [ (signal NeSgNameL : IOValues) ; IL => SchList ] Stores
+  ***              < Clk | decl-sg(NeSgNameL, IOValues) ; exit-block(IL) >< TControlSect > ValStores # DescStores .
+  rl [parse-signal] : [ (signal NeSgNameL : IOValues) ; IL -> SchList ]
                 => 
-                [ decl-sg(NeSgNameL, IOValues) ; exit-block(IL) => SchList ] Stores .
-  ***rl [decl-sg] : < Clk | decl-sg(SignalId SgNameL, IOValues) ; exit-block(IL) >< TControlSect > << ValStores >>#< SgDescSTR > 
+                [ decl-sg(NeSgNameL, IOValues) ; exit-block(IL) -> SchList ] .
+  ***rl [decl-sg] : < Clk | decl-sg(SignalId SgNameL, IOValues) ; exit-block(IL) >< TControlSect > ValStores # DescStores 
   ***              =>
-  ***              < Clk | decl-sg(SgNameL, IOValues) ; exit-block(IL) >< TControlSect > << ValStores >>#< insert(SignalId, ( inout $ IOValues), SgDescSTR) > .
-  rl [parse-decl-sg] : [ decl-sg(SignalId SgNameL, IOValues) ; exit-block(IL) => SchList ] << ValStores >>#< SgDescSTR >
+  ***              < Clk | decl-sg(SgNameL, IOValues) ; exit-block(IL) >< TControlSect > ValStores # < insert(SignalId, ( inout $ IOValues), SgDescSTR) > .
+  rl [parse-decl-sg] : [ decl-sg(SignalId SgNameL, IOValues) ; exit-block(IL) -> SchList ] ValStores # < SgDescSTR >
                 =>
-                [ decl-sg(SgNameL, IOValues) ; exit-block(IL) => SchList ] << ValStores >>#< insert(SignalId, ( inout $ IOValues), SgDescSTR) > .
+                [ decl-sg(SgNameL, IOValues) ; exit-block(IL) -> SchList ] ValStores # < insert(SignalId, ( inout $ IOValues), SgDescSTR) > .
   
-  rl [architecture] : < Clk | (architecture Str of Str2 is IL1 begin IL2 end Str) ; IL >< TControlSect > << ValStores >>#< SgDescSTR > => < Clk | IL1 exit-block(IL2 exit-block(IL)) >< TControlSect > << ValStores >>#< SgDescSTR > .
+  ***rl [architecture] : < Clk | (architecture Str of Str2 is IL1 begin IL2 end Str) ; IL >< TControlSect > ValStores # DescStores 
+  ***                    => 
+  ***                    < Clk | IL1 exit-block(IL2 exit-block(IL)) >< TControlSect > ValStores # DescStores .
+  rl [parse-architecture] : [ (architecture Str of Str2 is IL1 begin IL2 end Str) ; IL -> SchList ] StoresVar
+                          => 
+                          [ IL1 exit-block(IL2 exit-block(IL)) -> SchList ] StoresVar .  
 
   *** assign-sg-val : assign a value to a signal after solving all AExp and signal lookups
-  ***  rl [assign-sg-val] :  < clk(N) | (SignalId <= StdLogicVal) ; IL >< SchList | LstList > << SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
+  ***  rl [assign-sg-val] :  < clk(N) | (SignalId <= StdLogicVal) ; IL >< SchList | LstList > << SgSTR | VarSTR | ConstSTR >> # DescStores 
   ***                  => 
-  ***                  < clk(N + 1) | verify-sg(out, SignalId, SgDescSTR) ; IL >< SchList | LstList > << insert(SignalId, StdLogicVal, SgSTR) | VarSTR | ConstSTR >>#< SgDescSTR > .
+  ***                  < clk(N + 1) | verify-sg(out, SignalId, SgDescSTR) ; IL >< SchList | LstList > << insert(SignalId, StdLogicVal, SgSTR) | VarSTR | ConstSTR >> # DescStores .
   ***
-  crl [parse-assign-sg-val] :  < Clk | (SignalId <= StdLogicVal) ; IL >< TControlSect > << ValStores >>#< SgDescSTR > 
+  rl [parse-assign-sg-val] : [ (SignalId <= AExp1) ; IL -> SchList ] StoresVar
                             => 
-                            < Clk | IL >< TControlSect > << ValStores >>#< SgDescSTR > 
-                            if verify-sg(out, SignalId, SgDescSTR) .
+                            [ IL -> SchList {scheduledInst: time 0 ns, inst (SignalId <= AExp1) ;} ] StoresVar .
+                            ***if verify-sg(out, SignalId, SgDescSTR) .
   
   *** TODO: Make LstList so that it can have SgNameL [LstList] to keep track of nested processes' LstLists?
-  crl [process] : < clk(T) ClockPrev | nil >< {scheduledInst: time T, inst (process SgNameL begin IL2 end process) ;}  SchList | LstList | EventSchList > << SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
+  crl [process] : < clk(T) ClockPrev | nil >< {scheduledInst: time T, inst (process SgNameL begin IL2 end process) ;}  SchList || LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores 
                 => 
-                < clk(T) ClockPrev | nil >< unfoldProcess(IL2, T) SchList | SgNameL LstList | EventSchList > << SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
+                < clk(T) ClockPrev | nil >< unfoldProcess(IL2, T) SchList || SgNameL LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores 
                 if processSensitivityActivate(clk(T) ClockPrev, SgNameL, SgSTR) .
-  rl [parse-process] : < Clk | (process SgNameL begin IL2 end process) ; IL >< SchList | LstList | {scheduledEvent: time T, args SignalState} EventSchList > << ValStores >>#< SgDescSTR > 
-                => 
-                < Clk | IL >< SchList {scheduledInst: time T, inst (process SgNameL begin IL2 end process) ;} | SgNameL LstList | EventSchList > << ValStores >>#< SgDescSTR > .
-  ***rl [process-NoSensitivity] : < Clk | (process begin IL2 end process) ; IL >< TControlSect > << ValStores >>#< SgDescSTR > 
-  ***            => 
-  ***            < Clk | IL2 end process ; exit-block(IL) >< TControlSect > << ValStores >>#< SgDescSTR > .
-  
-  rl [end-process] : < Clk | end process ; exit-block(IL) >< SchList | LstList | EventSchList > << ValStores >>#< SgDescSTR >
+  rl [parse-process] : [ (process SgNameL begin IL2 end process) ; IL -> SchList ]
                     => 
-                    < Clk | exit-block(IL) >< SchList | nil | EventSchList > << ValStores >>#< SgDescSTR > .
+                    [ IL -> SchList {scheduledInst: time 0 ns, inst (process SgNameL begin IL2 end process) ;} ] .
+  ***rl [process-NoSensitivity] : < Clk | (process begin IL2 end process) ; IL >< TControlSect > ValStores # DescStores 
+  ***            => 
+  ***            < Clk | IL2 end process ; exit-block(IL) >< TControlSect > ValStores # DescStores .
+  
+  rl [end-process] : < Clk | end process ; exit-block(IL) >< SchList || LstList || EventSchList > ValStores # DescStores
+                    => 
+                    < Clk | exit-block(IL) >< SchList || nil || EventSchList > ValStores # DescStores .
 
   *** TODO: Modify so that the schedule list is repeated for T+delta if the state of the variables has changed
   ***       - Consider having this checked in advance, so that it does not have to be executed N+1 times to check the state is mantained?? 
-  ***crl [end-sim-cycle-delta] : < clk(T) [prev: clk(Tprev)] | nil >< {scheduledInst: time Tnext, inst I1 } SchList | LstList | EventSchList > << SgSTR | VarSTR | ConstSTR >>#< SgDescSTR >
+  ***crl [end-sim-cycle-delta] : < clk(T) [prev: clk(Tprev)] | nil >< {scheduledInst: time Tnext, inst I1 } SchList | LstList | EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores
   ***                    => 
-  ***                    < clk(T + delta) [prev: clk(T)] | nil ><  | nil | EventSchList > << SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
+  ***                    < clk(T + delta) [prev: clk(T)] | nil ><  | nil | EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores 
   ***                    if stateChanged(SgSTR, T, Tprev) .
     
   
-  rl [lookup-sg] :  < ClkP1 [prev: clk(T)] | (SignalId <= SignalId1 Op AExp1) ; IL >< TControlSect > << SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
+  rl [lookup-sg] :  < ClkP1 [prev: clk(T)] | (SignalId <= SignalId1 Op AExp1) ; IL >< TControlSect > << SgSTR | VarSTR | ConstSTR >> # DescStores 
                   => 
-                  < ClkP1 [prev: clk(T)] | (SignalId <= lookup-sg(SgSTR, {sgName SignalId1, time T}) Op AExp1) ; IL >< TControlSect > << SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
+                  < ClkP1 [prev: clk(T)] | (SignalId <= lookup-sg(SgSTR, {sgName SignalId1, time T}) Op AExp1) ; IL >< TControlSect > << SgSTR | VarSTR | ConstSTR >> # DescStores .
                   
-  rl [lookup-sg-bis] :  < ClkP1 [prev: clk(T)] | (SignalId <= AExp1 Op SignalId1) ; IL >< TControlSect > << SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > 
+  rl [lookup-sg-bis] :  < ClkP1 [prev: clk(T)] | (SignalId <= AExp1 Op SignalId1) ; IL >< TControlSect > << SgSTR | VarSTR | ConstSTR >> # DescStores 
                 => 
-                < ClkP1 [prev: clk(T)] | (SignalId <= AExp1 Op lookup-sg(SgSTR, {sgName SignalId1, time T})) ; IL >< TControlSect > << SgSTR | VarSTR | ConstSTR >>#< SgDescSTR > .
+                < ClkP1 [prev: clk(T)] | (SignalId <= AExp1 Op lookup-sg(SgSTR, {sgName SignalId1, time T})) ; IL >< TControlSect > << SgSTR | VarSTR | ConstSTR >> # DescStores .
   
   ***rl [solve-aexp] : SignalId Op AExp1 => lookup(SignalId)
   
@@ -521,13 +530,19 @@ mod VHDLMOD is
   ***rl [lookup-sg] : lookup-sg(SignalId) => SgSTR[SignalId] .
 
   *** nop: test instruction
-  rl [nop] : < Clk | nop ; IL >< TControlSect > << ValStores >>#< SgDescSTR > => < Clk | IL >< TControlSect > << ValStores >>#< SgDescSTR > .
+  rl [nop] : nop ; IL => IL .
 
 
   *** exit-block: exit an inner block and continue where left before
-  rl [exit-block] : < Clk | exit-block(IL) >< TControlSect > << ValStores >>#< SgDescSTR > => < Clk | IL >< TControlSect > << ValStores >>#< SgDescSTR > .
+  rl [exit-block] : < Clk | exit-block(IL) >< TControlSect > ValStores # DescStores 
+                    => 
+                    < Clk | IL >< TControlSect > ValStores # DescStores .
+  
+  rl [parse-exit-block] : [ exit-block(IL) -> SchList ]
+                => 
+                [ IL -> SchList ] .
 
-  rl [error] : < Clk | Error ; IL >< TControlSect > << ValStores >>#< SgDescSTR > => Error ; .
+  rl [error] : < Clk | Error ; IL >< TControlSect > ValStores # DescStores => Error ; .
 
   *** List{Inst} operations 
   op head : NeList{InstColon} -> InstColon .
@@ -537,6 +552,7 @@ mod VHDLMOD is
   eq tail(I1 IL) = IL .
 
   op exit-block : List{InstColon} -> List{InstColon} .
+  ***eq exit-block(IL) = IL .
 
   op get-port-sg : List{IODef} -> Inst [ctor] .
   eq get-port-sg(nil) = nop .
@@ -591,12 +607,12 @@ mod VHDLMOD is
   eq verify-sg(IOType, SignalId, SgDescSTR) = false [owise] .
   
   *** verify-gen : auxiliar op to verify generic declaration types
-  op verify-gen : VarType Value -> Inst [ctor] .
-  eq verify-gen(natural, NVal) = nop .
-  eq verify-gen(integer, IntVal) = nop .
-  eq verify-gen(time, TVal) = nop .
-  eq verify-gen(positive, NzN) = nop .
-  eq verify-gen(VarType, Val) = error("ERROR: Generic type incorrect") [owise] .
+  op verify-gen : VarType Value -> Bool [ctor] .
+  eq verify-gen(natural, NVal) = true .
+  eq verify-gen(integer, IntVal) = true .
+  eq verify-gen(time, TVal) = true .
+  eq verify-gen(positive, NzN) = true .
+  eq verify-gen(VarType, Val) = false [owise] .
 
 endm
 

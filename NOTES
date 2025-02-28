@@ -1,13 +1,14 @@
 TODO:
-- [WIP] Execution steps + adapt rules parsing/prepare for sim
+- [WIP] Execution steps
 - Modify [end-sim-cycle-delta] so that the schedule list is repeated for T+delta if the state of the variables has changed
        - Consider having this checked in advance, so that it does not have to be executed N+1 times to check the state is mantained?? 
 - Include rule to end parse part
 - Store SchList copy when finished parsing so that it can be copied when T+delta behaviour simulation is needed
 - Adapt assignments to new modelization
-- Adapt tests
+- [WIP] Adapt tests
 
-- [DONE] Rules for parsing not reducing...
+- [DONE] -----------Rules for parsing not reducing...
        - Reason: Problem with pattern matching the stores. 
        - Did a workaround for everything that does not need stores, but it gets stuck there 
        - [SOLUTION] - Subsorts for stores were causing rules to not match the sorts propperly
+         -----------Adapt rules parsing/prepare for sim

@@ -395,18 +395,18 @@ mod VHDLMOD is
   var DescStores : DescStores .
 
   *** Workflow: run(IL, EventSchList) -> Parse -> insitSimArch -> Simulation Loop
-  op run : List{InstColon} List{Transaction} -> ParserTime [ctor] .
-  eq run(IL, EventSchList) = parse(IL) < events: EventSchList > .
+  op run : List{InstColon} List{Transaction} -> VHDLSim [ctor] .
+  eq run(IL, EventSchList) = initSimArch(parse(IL) < events: EventSchList >) .
 
   op parse : List{InstColon} -> Parser [ctor] .
   eq parse(IL) = [ IL -> nil ] << empty | empty | empty >> # < empty > .
 
-  op initSimArch : ParserTime -> VHDLSim .
-  eq initSimArch([ nil -> SchList ] << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > < events: EventSchList >) = < clk(0 ns) [prev: clk(0 ns)] | nil >< SchList || nil || EventSchList > << insertDefault(SgDescSTR, empty) | VarSTR | ConstSTR >> # < SgDescSTR > .
+  op initSimArch : ParserTime -> VHDLSim [ctor] .
+  eq initSimArch([ nil -> SchList ] << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > < events: EventSchList >) = < clk(0 ns) [prev: clk(0 ns)] | nil >< SchList || nil || EventSchList > << insertDefault(SgDescSTR, SgSTR) | VarSTR | ConstSTR >> # < SgDescSTR > .
 
   op insertDefault : Map{String, SgDesc} Map{SgTimeTuple, Value} -> Map{SgTimeTuple, Value} .
   eq insertDefault(SignalId |-> ( IOType $ IOValues ), SgSTR) = insert({sgName SignalId, time 0 ns}, default(IOValues),  SgSTR) .
-  eq insertDefault((SignalId |-> ( IOType $ IOValues ), SgDescSTR), SgSTR) = insert({sgName SignalId, time 0 ns}, default(IOValues),  SgSTR) .
+  eq insertDefault((SignalId |-> ( IOType $ IOValues ), SgDescSTR), SgSTR) = insert({sgName SignalId, time 0 ns}, default(IOValues),  insertDefault(SgDescSTR, SgSTR)) .
 
   ***op initSim : List{InstColon} List{Transaction} -> VHDLSim [ctor] .
   ***eq initSim(IL, EventSchList) = < clk(0 ns) [prev: clk(0 ns)] | IL >< nil | nil | EventSchList > << empty | empty | empty >> # < empty > .
@@ -506,6 +506,10 @@ mod VHDLMOD is
   rl [end-process] : < Clk | end process ; exit-block(IL) >< SchList || LstList || EventSchList > ValStores # DescStores
                     => 
                     < Clk | exit-block(IL) >< SchList || nil || EventSchList > ValStores # DescStores .
+
+  ***rl [end-parse] : [ nil -> SchList ] StoresVar < events: EventSchList >
+  ***                =>
+  ***                initSimArch([ nil -> SchList ] StoresVar < events: EventSchList >) .
 
   *** TODO: Modify so that the schedule list is repeated for T+delta if the state of the variables has changed
   ***       - Consider having this checked in advance, so that it does not have to be executed N+1 times to check the state is mantained?? 

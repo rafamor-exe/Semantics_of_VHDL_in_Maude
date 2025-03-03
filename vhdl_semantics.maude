@@ -172,6 +172,14 @@ fmod VHDL-INSTCOLON-MOD is
 
   op _ <= _ : SignalName AExp -> SgAssign [ctor] .
 
+  op solve : AExp -> StdLogicVal .
+  eq solve(StdLogicVal1) = StdLogicVal1 .
+  eq solve(not AExp1) = not solve(AExp1) .
+  eq solve(AExp1 or AExp2) = solve(AExp1) or solve(AExp2) .
+  eq solve(AExp1 and AExp2) = solve(AExp1) and solve(AExp2) .
+  eq solve(AExp1 xor AExp2) = solve(AExp1) xor solve(AExp2) .
+  eq solve(AExp1 xand AExp2) = solve(AExp1) xand solve(AExp2) .
+
 endfm
 
 view InstColon from TRIV to VHDL-INSTCOLON-MOD is
@@ -421,6 +429,10 @@ mod VHDLMOD is
   ***_:__; : String IOType IOValues
 
   *** Rules
+
+  *** Non-deterministic change of signal values
+  ***rl [nd-sg-val-change] : ({sgName SignalId, time T} |-> StdLogicVal , SgSTR) => insert({sgName SignalId, time T}, not StdLogicVal, SgSTR) .
+
   ***rl [entity] : < Clk | (entity Str is IL1 end Str) ; IL >< TControlSect > ValStores # DescStores 
   ***              => 
   ***              < Clk | IL1 exit-block(IL) >< TControlSect > ValStores # DescStores .
@@ -482,10 +494,11 @@ mod VHDLMOD is
                           [ IL1 exit-block(IL2 exit-block(IL)) -> SchList ] StoresVar .  
 
   *** assign-sg-val : assign a value to a signal after solving all AExp and signal lookups
-  ***  rl [assign-sg-val] :  < clk(N) | (SignalId <= StdLogicVal) ; IL >< SchList | LstList > << SgSTR | VarSTR | ConstSTR >> # DescStores 
-  ***                  => 
-  ***                  < clk(N + 1) | verify-sg(out, SignalId, SgDescSTR) ; IL >< SchList | LstList > << insert(SignalId, StdLogicVal, SgSTR) | VarSTR | ConstSTR >> # DescStores .
-  ***
+  crl [assign-sg-val-sch] : < clk(T) [prev: clk(Tprev)] | nil >< {scheduledInst: time T, inst (SignalId <= solve(AExp1)) ;}  SchList || LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > 
+                      => 
+                      < clk(T) [prev: clk(Tprev)] | nil >< SchList || LstList || EventSchList > << insert({sgName SignalId, time T + delta}, solve(AExp1), SgSTR) | VarSTR | ConstSTR >> # < SgDescSTR >
+                      if sg-val-changed(SignalId, solve(AExp1), Tprev, SgSTR) .
+
   rl [parse-assign-sg-val] : [ (SignalId <= AExp1) ; IL -> SchList ] StoresVar
                             => 
                             [ IL -> SchList {scheduledInst: time 0 ns, inst (SignalId <= AExp1) ;} ] StoresVar .
@@ -503,9 +516,9 @@ mod VHDLMOD is
   ***            => 
   ***            < Clk | IL2 end process ; exit-block(IL) >< TControlSect > ValStores # DescStores .
   
-  rl [end-process] : < Clk | end process ; exit-block(IL) >< SchList || LstList || EventSchList > ValStores # DescStores
-                    => 
-                    < Clk | exit-block(IL) >< SchList || nil || EventSchList > ValStores # DescStores .
+  ***rl [parse-end-process] : < Clk | end process ; exit-block(IL) >< SchList || LstList || EventSchList > ValStores # DescStores
+  ***                  => 
+  ***                  < Clk | exit-block(IL) >< SchList || nil || EventSchList > ValStores # DescStores .
 
   ***rl [end-parse] : [ nil -> SchList ] StoresVar < events: EventSchList >
   ***                =>
@@ -513,10 +526,11 @@ mod VHDLMOD is
 
   *** TODO: Modify so that the schedule list is repeated for T+delta if the state of the variables has changed
   ***       - Consider having this checked in advance, so that it does not have to be executed N+1 times to check the state is mantained?? 
-  ***crl [end-sim-cycle-delta] : < clk(T) [prev: clk(Tprev)] | nil >< {scheduledInst: time Tnext, inst I1 } SchList | LstList | EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores
-  ***                    => 
-  ***                    < clk(T + delta) [prev: clk(T)] | nil ><  | nil | EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores 
-  ***                    if stateChanged(SgSTR, T, Tprev) .
+  ***       - Add condition to let time advance when T is 0 ns
+  crl [end-sim-cycle-delta] : < clk(T) [prev: clk(Tprev)] | nil >< {scheduledInst: time Tnext, inst I1 } SchList || LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores
+                            => 
+                            < clk(Tnext) [prev: clk(T)] | nil >< {scheduledInst: time Tnext, inst I1 } SchList || nil || EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores 
+                            if T =/= Tnext .
     
   
   rl [lookup-sg] :  < ClkP1 [prev: clk(T)] | (SignalId <= SignalId1 Op AExp1) ; IL >< TControlSect > << SgSTR | VarSTR | ConstSTR >> # DescStores 
@@ -580,6 +594,11 @@ mod VHDLMOD is
                                                                                 if lookup-sg(SgSTR, {sgName SignalId1, time T}) =/= lookup-sg(SgSTR, {sgName SignalId1, time Tprev}) 
                                                                                     or processSensitivityActivate(clk(T) [prev: clk(Tprev)], SgNameL, SgSTR) .
   eq processSensitivityActivate(clk(T) [prev: clk(Tprev)], SignalId1 SgNameL, SgSTR) = false [owise] .
+
+  op sg-val-changed : SignalName StdLogicVal Time Map{SgTimeTuple, Value} -> Bool .
+  ceq sg-val-changed(SignalId, StdLogicVal, Tprev, SgSTR) = true if StdLogicVal =/= lookup-sg(SgSTR, {sgName SignalId, time Tprev}) .
+  eq sg-val-changed(SignalId, StdLogicVal, Tprev, SgSTR) = false [owise] .
+
 
   *** ------------
 

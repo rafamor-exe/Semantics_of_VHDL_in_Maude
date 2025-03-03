@@ -75,3 +75,12 @@ begin
 end "behaviour";
 
 FIX: rew run(((entity "example_and" is  port (("input_1" : in  "std_logic" ;)  ("input_2" : in  "std_logic" ;)  ) ; end "example_and" ) ; (architecture "behaviour" of "example_and" is nop ; begin ( process begin    ("input_1" <= ( stdlogicVal('1') or stdlogicVal('0')))  end process); end "behaviour" ;)), nil) .
+
+Maude> rew run(((entity "example_and" is  port (("input_1" : in  "std_logic" ;)  ("input_2" : in  "std_logic" ;)  ) ; end "example_and" ) ; (architecture "behaviour" of "example_and" is nop ; begin ( process begin    ("input_1" <= ( stdlogicVal('1') or stdlogicVal('0'))) ;  end process); end "behaviour" );), nil) .
+Warning: ctor declarations for associative operator _xor_ are conflict on 200 out of 5832 sort triples. First such triple is (AExp, Int, Int).
+Advisory: "vhdl_semantics.maude", line 550 (mod VHDLMOD): collapse at top of nop ; IL may cause it to match more than you expect.
+rewrite in VHDLMOD : run((entity "example_and" is port(("input_1" : in "std_logic" ;) ("input_2" : in "std_logic" ;)) ; end "example_and") ; (architecture "behaviour" of
+    "example_and" is nop ; begin process begin ("input_1" <= (stdlogicVal('1') or stdlogicVal('0'))) ; end process ; end "behaviour") ;, nil) .
+rewrites: 31 in 0ms cpu (0ms real) (~ rewrites/second)
+result [VHDLSim]: < clk(0 ns) [prev: clk(0 ns)] | nil >< {scheduledInst: time 0 ns, inst ("input_1" <= stdlogicVal('1')) ;} || nil || nil > << {sgName "input_1", time 0 ns}
+    |-> 'U', {sgName "input_2", time 0 ns} |-> 'U' | empty | empty >> # < "input_1" |-> in $ "std_logic", "input_2" |-> in $ "std_logic" >

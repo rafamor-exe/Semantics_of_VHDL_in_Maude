@@ -1,12 +1,18 @@
 TODO:
 - [WIP] Execution steps
 - Modify [end-sim-cycle-delta] so that the schedule list is repeated for T+delta if the state of the variables has changed
-       - Consider having this checked in advance, so that it does not have to be executed N+1 times to check the state is mantained?? 
+       - Consider having this checked in advance, so that it does not have to be executed N+1 times to check the state is mantained??
+              - Solution: only schedule when signal changes value
+       - ISSUE: time not advancing!!!!
+              - Add condition to let time advance when T is 0 ns
+              - Check assignment scheduling
+- Check delta-delay-scheduled processes are being triggered using the value of the correct delta?
 - Include rule to end parse part
 - Store SchList copy when finished parsing so that it can be copied when T+delta behaviour simulation is needed
 - Adapt assignments to new modelization
 - [WIP] Adapt tests
-
+- Remove Listeting list and inst list on simulation (inst list is only useful at parsing, after that everything is triggered automatically with the scheduler)
+- [WIP] Non-deterministic rule to chnage value of signals
 - [DONE] -----------Rules for parsing not reducing...
        - Reason: Problem with pattern matching the stores. 
        - Did a workaround for everything that does not need stores, but it gets stuck there 

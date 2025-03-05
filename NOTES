@@ -7,9 +7,12 @@ TODO:
        - ISSUE: time not advancing!!!!
               - Add condition to let time advance when T is 0 ns
               - Check assignment scheduling
-- [WIP] ONLY solve AExp when resolving an scheduled update. Any other time (when storing on SchList just store the AExp)
+- [DONE] ONLY solve AExp when resolving an scheduled update. Any other time (when storing on SchList just store the AExp)
        - Right now it does not totally reduce because of that (expects something of the form "solve(AExp)", tried removing it but messes up...)
        - Also, right now is not being stored like that because it solves the AExp due to the eqs defined for them (also tried commenting them but some issues arise still)
+- [DONE] FIX repeat execution and update variables at the corresponding time
+       - Clock is not advancing discretely and repeats are not being scheduled propperly... 
+- [WIP] - Clock does one step more than needed I think
 - Check delta-delay-scheduled processes are being triggered using the value of the correct delta?
 - Include rule to end parse part
 - Store SchList copy when finished parsing so that it can be copied when T+delta behaviour simulation is needed

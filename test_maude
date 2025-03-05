@@ -84,3 +84,7 @@ rewrite in VHDLMOD : run((entity "example_and" is port(("input_1" : in "std_logi
 rewrites: 31 in 0ms cpu (0ms real) (~ rewrites/second)
 result [VHDLSim]: < clk(0 ns) [prev: clk(0 ns)] | nil >< {scheduledInst: time 0 ns, inst ("input_1" <= stdlogicVal('1')) ;} || nil || nil > << {sgName "input_1", time 0 ns}
     |-> 'U', {sgName "input_2", time 0 ns} |-> 'U' | empty | empty >> # < "input_1" |-> in $ "std_logic", "input_2" |-> in $ "std_logic" >
+
+
+rew run(((entity "example_and" is  port (("input_1" : in  "std_logic" ;)  ("input_2" : in  "std_logic" ;)  ) ; end "example_and" ) ; (architecture "behaviour" of "example_and" is nop ; begin ( process begin    (("input_2" <= (stdlogicVal('0'))) ; ("input_1" <= ( stdlogicVal('1') or "input_2")) ;)  end process); end "behaviour" );), nil) .
+rew run(((entity "example_and" is  port (("input_1" : in  "std_logic" ;)  ("input_2" : in  "std_logic" ;)  ) ; end "example_and" ) ; (architecture "behaviour" of "example_and" is nop ; begin ( process begin    (("input_2" <= (stdlogicVal('0'))) ; ("input_1" <= ( stdlogicVal('1') or "input_2")) ;)  end process); end "behaviour" );), nil) .

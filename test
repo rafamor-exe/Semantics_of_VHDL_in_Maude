@@ -1,3 +1,6 @@
 ghdl -a <file_name>
 ghdl -e <entity_name>
 ghdl -r <entity_name>
+
+ghdl -r -v <entity_name> --wave=<output_wave_name>.ghw
+gtkwave <output_wave_name>.ghw

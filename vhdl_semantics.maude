@@ -135,7 +135,7 @@ fmod VHDL-INSTCOLON-MOD is
   subsorts String < SignalName VarConstName .
   subsorts Int StdLogicVal < AExp .
 
-  ops and or xand sg-xor : -> Op [ctor] . 
+  ops and or nand nor xnor sg-xor : -> Op [ctor] . 
   ***op _ _ _ : Term Op AExp -> AExp [ctor] .
 
   vars Op : Op .
@@ -175,29 +175,61 @@ fmod VHDL-INSTCOLON-MOD is
   eq stdlogicVal('H') or AExp1 = stdlogicVal('1') .
   eq AExp1 or stdlogicVal('1') = stdlogicVal('1') .
   eq AExp1 or stdlogicVal('H') = stdlogicVal('1') .
-  eq stdlogicVal(stdlogicVal('0')) or stdlogicVal(stdlogicVal('L')) = stdlogicVal('0') .
-  eq stdlogicVal(stdlogicVal('L')) or stdlogicVal(stdlogicVal('0')) = stdlogicVal(stdlogicVal('0')) .
-  eq stdlogicVal('U') or StdLogicVal2 = orU(StdLogicVal2)  .
+  eq stdlogicVal('0') or stdlogicVal('L') = stdlogicVal('0') .
+  eq stdlogicVal('L') or stdlogicVal('0') = stdlogicVal('0') .
+  eq stdlogicVal('U') or StdLogicVal2 = orU(StdLogicVal2) . 
+  eq StdLogicVal1 or stdlogicVal('U') = orU(StdLogicVal1) .
   eq StdLogicVal1 or StdLogicVal2 = stdlogicVal('X') [owise] .
 
   op orU : StdLogicVal -> StdLogicVal .
   eq orU('1') = stdlogicVal('1') .
   eq orU('H') = stdlogicVal('1') .
-  eq orU(stdlogicVal('U')) = stdlogicVal('U') [owise] .
+  eq orU(StdLogicVal) = stdlogicVal('U') [owise] .
 
   ***op _and_ : StdLogic AExp -> AExp [ctor] .
-  eq stdlogicVal('1') and AExp1 = AExp1 .
+  
+  eq stdlogicVal('1') and stdlogicVal('H') = stdlogicVal('1') .
+  eq stdlogicVal('H') and stdlogicVal('1') = stdlogicVal('1') .
   eq stdlogicVal('0') and AExp1 =  stdlogicVal('0') .
-  eq stdlogicVal('U') and AExp1 = stdlogicVal('U') .
-  op _xor_ : AExp AExp -> AExp [ditto ctor] .
-  ceq AExp1 xor AExp2 = stdlogicVal('1') if AExp1 =/= AExp2 /\ (AExp1 == stdlogicVal('1') or AExp2 == stdlogicVal('1')) .
-  eq AExp1 xor AExp2 =  stdlogicVal('0') [owise] .
-  ***op _xand_ : AExp AExp -> AExp [ctor] .
-  ceq AExp1 xand AExp2 = stdlogicVal('1') if AExp1 == AExp2 .
-  eq AExp1 xand AExp2 =  stdlogicVal('0') [owise] .
+  eq stdlogicVal('L') and AExp1 =  stdlogicVal('0') .
+  eq AExp1 and stdlogicVal('0') =  stdlogicVal('0') .
+  eq AExp1 and stdlogicVal('L') =  stdlogicVal('0') .
+  eq stdlogicVal('U') and StdLogicVal2 = andU(StdLogicVal2) . 
+  eq StdLogicVal1 and stdlogicVal('U') = andU(StdLogicVal1) .
+  eq StdLogicVal1 and StdLogicVal2 = stdlogicVal('X') [owise] .
 
-  ceq StdLogicVal1 sg-xor AExp2 = stdlogicVal('1') if StdLogicVal1 =/= AExp2 /\ (StdLogicVal1 == stdlogicVal('1') or AExp2 == stdlogicVal('1')) .
-  eq StdLogicVal1 sg-xor AExp2 =  stdlogicVal('0') [owise] .
+  op andU : StdLogicVal -> StdLogicVal .
+  eq orU('0') = stdlogicVal('0') .
+  eq orU('L') = stdlogicVal('0') .
+  eq orU(StdLogicVal) = stdlogicVal('U') [owise] .
+
+  op _xor_ : AExp AExp -> AExp [ditto ctor] .
+  ***ceq AExp1 xor AExp2 = stdlogicVal('1') if AExp1 =/= AExp2 /\ (AExp1 == stdlogicVal('1') or AExp2 == stdlogicVal('1')) .
+  ***eq AExp1 xor AExp2 =  stdlogicVal('0') [owise] .
+  eq stdlogicVal('1') xor stdlogicVal('0') = stdlogicVal('1') .
+  eq stdlogicVal('0') xor stdlogicVal('1') = stdlogicVal('1') .
+  eq stdlogicVal('1') xor stdlogicVal('L') = stdlogicVal('1') .
+  eq stdlogicVal('L') xor stdlogicVal('1') = stdlogicVal('1') .
+  eq stdlogicVal('1') xor stdlogicVal('1') = stdlogicVal('0') .
+  eq stdlogicVal('1') xor stdlogicVal('H') = stdlogicVal('0') .
+  eq stdlogicVal('H') xor stdlogicVal('1') = stdlogicVal('0') .
+  eq stdlogicVal('H') xor stdlogicVal('H') = stdlogicVal('0') .
+  eq stdlogicVal('0') xor stdlogicVal('0') = stdlogicVal('0') .
+  eq stdlogicVal('0') xor stdlogicVal('L') = stdlogicVal('0') .
+  eq stdlogicVal('L') xor stdlogicVal('0') = stdlogicVal('0') .
+  eq stdlogicVal('L') xor stdlogicVal('L') = stdlogicVal('0') .
+  eq stdlogicVal('U') xor AExp1 = stdlogicVal('U') . 
+  eq AExp1 xor stdlogicVal('U') = stdlogicVal('U') .
+  eq StdLogicVal1 xor StdLogicVal2 = stdlogicVal('X') [owise] .
+
+
+  ***op _xand_ : AExp AExp -> AExp [ctor] .
+  eq AExp1 nand AExp2 = not (AExp1 and AExp2) .
+  eq AExp1 nor AExp2 = not (AExp1 or AExp2) .
+  eq AExp1 xnor AExp2 = not (AExp1 xor AExp2) .
+
+  ***ceq StdLogicVal1 sg-xor AExp2 = stdlogicVal('1') if StdLogicVal1 =/= AExp2 /\ (StdLogicVal1 == stdlogicVal('1') or AExp2 == stdlogicVal('1')) .
+  eq StdLogicVal1 sg-xor StdLogicVal2 =  StdLogicVal1 xor StdLogicVal2 [owise] .
 
   op _ <= _ : SignalName AExp -> SgAssign [ctor] .
 
@@ -590,9 +622,6 @@ mod VHDLMOD is
   ***                =>
   ***                initSimArch([ nil -> SchList ] StoresVar < events: EventSchList >) .
 
-  *** TODO: Modify so that the schedule list is repeated for T+delta if the state of the variables has changed
-  ***       - Consider having this checked in advance, so that it does not have to be executed N+1 times to check the state is mantained?? 
-  ***       - Add condition to let time advance when T is 0 ns
   crl [end-sim-cycle-delta] : < clk(T) [prev: clk(Tprev)] | nil >< nil || LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp}
                                     => 
                                     < clk(T + delta) [prev: clk(T)] | nil >< schOnTime(SchListCp, T + delta) || nil || EventSchList > << fill-blanks(get-sgL(SgDescSTR), SgSTR, T + delta, T) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: insertDefaultRep(SgDescSTR, SgChangedMap) } {wholeExec: SchListCp}

@@ -1,7 +1,7 @@
 rew run(
   (
     (entity "example_and" is
-      port (("A" : in  "bit" ;)  ("B" : in  "std_logic" ;) ("C" : in  "std_logic" ;)  ) ;
+      port (("A" : in  bit ;)  ("B" : in  "std_logic" ;) ("C" : in  "std_logic" ;)  ) ;
     end "example_and" ) ;
     (architecture "behaviour" of "example_and" is nop ;
       begin (

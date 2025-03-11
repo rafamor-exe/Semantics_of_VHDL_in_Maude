@@ -5,9 +5,9 @@ fmod VHDL-IODEF-MOD is
   sorts IODef IOType IOValues SgDesc .
 
   ops in out inout : -> IOType [ctor] .
-  ops "std_logic" "bit" : -> IOValues [ctor] .
+  ops "std_logic" bit : -> IOValues [ctor] .
 
-  op (_$_) : IOType IOValues -> SgDesc [ctor] .
+  op {_$_} : IOType IOValues -> SgDesc [ctor] .
 
   op _:__; : String IOType IOValues -> IODef [ctor] .
 
@@ -32,9 +32,10 @@ fmod VHDL-VALUE-MOD is
   protecting VHDL-IODEF-MOD .
 
   sorts StdLogic Value IntVal StdLogicVal TimeVal NatVal .
-  sorts Time TimeUnit TimeDelta Delta Bit .
+  sorts Time TimeUnit TimeDelta Delta Bit StdLogicAux .
+  sorts To1 To0 .
   subsorts NatVal IntVal StdLogicVal TimeVal < Value . *** checkear. añadir un wrapper a los tipos
-  subsorts Bit < StdLogic < StdLogicVal .
+  subsorts Bit StdLogicAux < StdLogic < StdLogicVal .
   subsorts TimeDelta < Time .
 
   ***subsorts Int < IntVal .
@@ -49,7 +50,8 @@ fmod VHDL-VALUE-MOD is
   *** Bit logic
 
   ops '0' '1' : -> Bit [ctor] .
-  ops 'U' 'X' 'Z' 'W' 'L' 'H' '-' : -> StdLogic [ctor] .
+  ops 'Z' 'W' 'L' 'H' : -> StdLogicAux [ctor] .
+  ops 'U' 'X' '-' : -> StdLogic [ctor] .
 
   *** Time
 
@@ -85,7 +87,13 @@ fmod VHDL-VALUE-MOD is
 
   op default : IOValues -> Value .
   eq default("std_logic") = stdlogicVal('U') .
-  eq default("bit") = stdlogicVal('0') .
+  eq default(bit) = stdlogicVal('0') .
+
+  ***var StdLogic : StdLogic .
+  ***mb 'H' : To1 .
+  ***mb '1' : To1 . 
+  ***mb 'L' : To0 .
+  ***mb '0' : To0 . 
 
 endfm
 
@@ -148,19 +156,34 @@ fmod VHDL-INSTCOLON-MOD is
   *** - Generic
   op generic (_) : NeList{GenDef} -> Generic [ctor] .
 
-  vars StdLogicVal1 : StdLogicVal .
+  vars StdLogicVal StdLogicVal1 StdLogicVal2 : StdLogicVal .
+  var ZWLH : StdLogicAux .
+  var To0 : To0 .
+  var To1 : To1 .
   vars AExp1 AExp2 : AExp .
   op ___ : AExp Op AExp -> AExp [ctor] .
 
   op not_ : AExp -> AExp [ctor] .
-  ceq not AExp1 = stdlogicVal('0') if AExp1 == stdlogicVal('1') .
-  ceq not AExp1 = stdlogicVal('1') if AExp1 == stdlogicVal('0') .
-  ceq not AExp1 = stdlogicVal('U') if AExp1 == stdlogicVal('U') .
+  eq not stdlogicVal('U') = stdlogicVal('U') .
+  eq not stdlogicVal('0') = stdlogicVal('1') .
+  eq not stdlogicVal('1') = stdlogicVal('0') .
+  eq not stdlogicVal('L') = stdlogicVal('1') .
+  eq not stdlogicVal('H') = stdlogicVal('0') .
+  eq not StdLogicVal = stdlogicVal('X') [owise] .
   ***op _or_ : StdLogic AExp -> AExp [ctor] .
-  ceq stdlogicVal('1') or AExp1 = stdlogicVal('1') if AExp1 =/= stdlogicVal('U') .
-  eq stdlogicVal('0') or AExp1 = AExp1 .
-  eq stdlogicVal('U') or AExp1 = stdlogicVal('U')  .
-  eq stdlogicVal('1') or AExp1 = stdlogicVal('U') [owise] .
+  eq stdlogicVal('1') or AExp1 = stdlogicVal('1') .
+  eq stdlogicVal('H') or AExp1 = stdlogicVal('1') .
+  eq AExp1 or stdlogicVal('1') = stdlogicVal('1') .
+  eq AExp1 or stdlogicVal('H') = stdlogicVal('1') .
+  eq stdlogicVal(stdlogicVal('0')) or stdlogicVal(stdlogicVal('L')) = stdlogicVal('0') .
+  eq stdlogicVal(stdlogicVal('L')) or stdlogicVal(stdlogicVal('0')) = stdlogicVal(stdlogicVal('0')) .
+  eq stdlogicVal('U') or StdLogicVal2 = orU(StdLogicVal2)  .
+  eq StdLogicVal1 or StdLogicVal2 = stdlogicVal('X') [owise] .
+
+  op orU : StdLogicVal -> StdLogicVal .
+  eq orU('1') = stdlogicVal('1') .
+  eq orU('H') = stdlogicVal('1') .
+  eq orU(stdlogicVal('U')) = stdlogicVal('U') [owise] .
 
   ***op _and_ : StdLogic AExp -> AExp [ctor] .
   eq stdlogicVal('1') and AExp1 = AExp1 .
@@ -178,13 +201,20 @@ fmod VHDL-INSTCOLON-MOD is
 
   op _ <= _ : SignalName AExp -> SgAssign [ctor] .
 
-  op solve : AExp -> StdLogicVal .
-  eq solve(StdLogicVal1) = StdLogicVal1 .
-  eq solve(not AExp1) = not solve(AExp1) .
-  eq solve(AExp1 or AExp2) = solve(AExp1) or solve(AExp2) .
-  eq solve(AExp1 and AExp2) = solve(AExp1) and solve(AExp2) .
-  eq solve(AExp1 xor AExp2) = solve(AExp1) xor solve(AExp2) .
-  eq solve(AExp1 xand AExp2) = solve(AExp1) xand solve(AExp2) .
+  op resolve : StdLogicVal StdLogicVal -> StdLogicVal .
+  eq resolve(stdlogicVal('U'), StdLogicVal2) = stdlogicVal('U') .
+  eq resolve(StdLogicVal1, stdlogicVal('U')) = stdlogicVal('U') .
+  eq resolve(stdlogicVal('0'), stdlogicVal(ZWLH)) = stdlogicVal('0') .
+  eq resolve(stdlogicVal(ZWLH), stdlogicVal('0')) = stdlogicVal('0') .
+  eq resolve(stdlogicVal('1'), stdlogicVal(ZWLH)) = stdlogicVal('1') .
+  eq resolve(stdlogicVal(ZWLH), stdlogicVal('1')) = stdlogicVal('1') .
+  eq resolve(stdlogicVal('Z'), stdlogicVal(ZWLH)) = stdlogicVal(ZWLH) .
+  eq resolve(stdlogicVal(ZWLH), stdlogicVal('Z')) = stdlogicVal(ZWLH) .
+  eq resolve(stdlogicVal('W'), stdlogicVal(ZWLH)) = stdlogicVal('W') .
+  eq resolve(stdlogicVal(ZWLH), stdlogicVal('W')) = stdlogicVal('W') .
+  eq resolve(stdlogicVal('L'), stdlogicVal('H')) = stdlogicVal('W') .
+  eq resolve(stdlogicVal('H'), stdlogicVal('L')) = stdlogicVal('W') .
+  eq resolve(StdLogicVal1, StdLogicVal2) = stdlogicVal('X') [owise] .
 
   ***var StdLogicVal1 StdLogicVal2 : StdLogicVal .
   ***op _and_ : StdLogic StdLogic -> StdLogic [ctor] .
@@ -402,7 +432,7 @@ mod VHDLMOD is
   var IOTypeL : List{IOType} .
   var IOValues : IOValues .
   var IODefL : List{IODef} .
-  var StdLogicVal : StdLogicVal .
+  var StdLogicVal StdLogicVal1 StdLogicVal2 : StdLogicVal .
   var AExp1 : AExp .
   var Error : Error .
   vars Op : Op .
@@ -436,12 +466,12 @@ mod VHDLMOD is
   eq initSimArch([ nil -> SchList ] << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > < events: EventSchList >) = < clk(0 ns) [prev: clk(0 ns)] | nil >< SchList || nil || EventSchList > << insertDefault(SgDescSTR, SgSTR) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: insertDefaultRep(SgDescSTR, empty) } {wholeExec: SchList} .
 
   op insertDefault : Map{String, SgDesc} Map{SgTimeTuple, Value} -> Map{SgTimeTuple, Value} .
-  eq insertDefault(SignalId |-> ( IOType $ IOValues ), SgSTR) = insert({sgName SignalId, time 0 ns}, default(IOValues),  SgSTR) .
-  eq insertDefault((SignalId |-> ( IOType $ IOValues ), SgDescSTR), SgSTR) = insert({sgName SignalId, time 0 ns}, default(IOValues),  insertDefault(SgDescSTR, SgSTR)) .
+  eq insertDefault(SignalId |-> { IOType $ IOValues }, SgSTR) = insert({sgName SignalId, time 0 ns}, default(IOValues),  SgSTR) .
+  eq insertDefault((SignalId |-> { IOType $ IOValues }, SgDescSTR), SgSTR) = insert({sgName SignalId, time 0 ns}, default(IOValues),  insertDefault(SgDescSTR, SgSTR)) .
 
   op insertDefaultRep : Map{String, SgDesc} Map{String, Bool} -> Map{String, Bool} .
-  eq insertDefaultRep(SignalId |-> ( IOType $ IOValues ), SgChangedMap) = insert(SignalId, false,  SgChangedMap) .
-  eq insertDefaultRep((SignalId |-> ( IOType $ IOValues ), SgDescSTR), SgChangedMap) = insert(SignalId, false,  insertDefaultRep(SgDescSTR, SgChangedMap)) .
+  eq insertDefaultRep(SignalId |-> { IOType $ IOValues }, SgChangedMap) = insert(SignalId, false,  SgChangedMap) .
+  eq insertDefaultRep((SignalId |-> { IOType $ IOValues }, SgDescSTR), SgChangedMap) = insert(SignalId, false,  insertDefaultRep(SgDescSTR, SgChangedMap)) .
 
 
   ***op initSim : List{InstColon} List{Transaction} -> VHDLSim [ctor] .
@@ -481,12 +511,12 @@ mod VHDLMOD is
                     [ get-port-sg(NeIODefL) ; exit-block(IL) -> SchList ] .
   rl [parse-get-port-sg] : [ (get-port-sg((Str : IOType IOValues ;) IODefL)) ; exit-block(IL) -> SchList ] ValStores # < SgDescSTR > 
                      => 
-                     [ get-port-sg(IODefL) ; exit-block(IL) -> SchList ] ValStores # < insert(Str, ( IOType $ IOValues), SgDescSTR) > .
+                     [ get-port-sg(IODefL) ; exit-block(IL) -> SchList ] ValStores # < insert(Str, { IOType $ IOValues }, SgDescSTR) > .
   ***-----
   ***rl [get-port-sg-empty] : < Clk | (get-port-sg(nil)) ; exit-block(IL) >< TControlSect > ValStores # DescStores => < Clk | exit-block(IL) >< TControlSect > ValStores # DescStores .
   ***rl [get-port-sg] : < Clk | (get-port-sg((Str : IOType IOValues ;) IODefL)) ; exit-block(IL) >< TControlSect > ValStores # DescStores 
   ***                   => 
-  ***                   < Clk | get-port-sg(IODefL) ; exit-block(IL) >< TControlSect > ValStores # < insert(Str, ( IOType $ IOValues), SgDescSTR) > .
+  ***                   < Clk | get-port-sg(IODefL) ; exit-block(IL) >< TControlSect > ValStores # < insert(Str, { IOType $ IOValues }, SgDescSTR) > .
   ***rl [generic] : < Clk | (generic(NeGenDefL)) ; IL >< TControlSect > ValStores # DescStores 
   ***               => 
   ***              < Clk | get-gen(NeGenDefL) ; exit-block(IL) >< TControlSect > ValStores # DescStores .
@@ -512,7 +542,7 @@ mod VHDLMOD is
   ***              < Clk | decl-sg(SgNameL, IOValues) ; exit-block(IL) >< TControlSect > ValStores # < insert(SignalId, ( inout $ IOValues), SgDescSTR) > .
   rl [parse-decl-sg] : [ decl-sg(SignalId SgNameL, IOValues) ; exit-block(IL) -> SchList ] ValStores # < SgDescSTR >
                 =>
-                [ decl-sg(SgNameL, IOValues) ; exit-block(IL) -> SchList ] ValStores # < insert(SignalId, ( inout $ IOValues), SgDescSTR) > .
+                [ decl-sg(SgNameL, IOValues) ; exit-block(IL) -> SchList ] ValStores # < insert(SignalId, { inout $ IOValues}, SgDescSTR) > .
   
   ***rl [architecture] : < Clk | (architecture Str of Str2 is IL1 begin IL2 end Str) ; IL >< TControlSect > ValStores # DescStores 
   ***                    => 
@@ -522,19 +552,18 @@ mod VHDLMOD is
                           [ IL1 exit-block(IL2 exit-block(IL)) -> SchList ] StoresVar .  
 
   *** assign-sg-val : assign a value to a signal after solving all AExp and signal lookups
-  crl [assign-sg-val-sch] : < clk(Tnow) [prev: clk(Tprev)] | nil >< {scheduledInst: time T, inst (SignalId <= StdLogicVal) ;}  SchList || LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp}
+  rl [assign-sg-val-sch] : < clk(T) [prev: clk(Tprev)] | nil >< {scheduledInst: time T, inst (SignalId <= StdLogicVal) ;}  SchList || LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp}
                       => 
-                      < clk(Tnow) [prev: clk(Tprev)] | nil >< SchList || LstList || EventSchList > << insert({sgName SignalId, time Tnow + delta}, correctVal(solve(StdLogicVal), SignalId, Tnow, SgSTR, Tprev), SgSTR) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: insert(SignalId,  (sg-val-changed(correctVal(solve(StdLogicVal), SignalId, Tnow, SgSTR, Tprev), SignalId, Tnow, SgSTR)), SgChangedMap) } {wholeExec: SchListCp} 
-                      if Tnow == T .
+                      < clk(T) [prev: clk(Tprev)] | nil >< SchList || LstList || EventSchList > << insert({sgName SignalId, time T + delta}, correctVal(StdLogicVal, SignalId, lookup-sg(SgSTR, {sgName SignalId, time T + delta}), lookup-sg(SgSTR, {sgName SignalId, time T})), SgSTR) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: insert(SignalId,  (sg-val-changed(correctVal(StdLogicVal, SignalId, lookup-sg(SgSTR, {sgName SignalId, time T + delta}), lookup-sg(SgSTR, {sgName SignalId, time T})), SignalId, T, SgSTR)), SgChangedMap) } {wholeExec: SchListCp} .
                       ***if verify-sg(out inout, SignalId, SgDescSTR) .
 
   rl [resolve-sg] : < clk(T) [prev: clk(Tprev)] | nil >< {scheduledInst: time T, inst (SignalId <= SignalId1 Op AExp1) ;}  SchList || LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores {repeat: SgChangedMap } {wholeExec: SchListCp}
                     => 
-                  < clk(T) [prev: clk(Tprev)] | nil >< SchList || LstList || EventSchList > << insert({sgName SignalId, time T + delta}, correctVal(solve(lookup-sg(SgSTR, {sgName SignalId1, time T}) Op AExp1), SignalId, T, SgSTR, Tprev), SgSTR) | VarSTR | ConstSTR >> # DescStores {repeat: insert(SignalId,  (sg-val-changed(correctVal(solve(lookup-sg(SgSTR, {sgName SignalId1, time T}) Op AExp1), SignalId, T, SgSTR, Tprev), SignalId, T, SgSTR)), SgChangedMap) } {wholeExec: SchListCp} .
+                  < clk(T) [prev: clk(Tprev)] | nil >< SchList || LstList || EventSchList > << insert({sgName SignalId, time T + delta}, correctVal(lookup-sg(SgSTR, {sgName SignalId1, time T}) Op AExp1, SignalId, lookup-sg(SgSTR, {sgName SignalId, time T + delta}), lookup-sg(SgSTR, {sgName SignalId, time T})), SgSTR) | VarSTR | ConstSTR >> # DescStores {repeat: insert(SignalId,  (sg-val-changed(correctVal(lookup-sg(SgSTR, {sgName SignalId1, time T}) Op AExp1, SignalId, lookup-sg(SgSTR, {sgName SignalId, time T + delta}), lookup-sg(SgSTR, {sgName SignalId, time T})), SignalId, T, SgSTR)), SgChangedMap) } {wholeExec: SchListCp} .
   
   rl [resolve-sg-bis] : < clk(T) [prev: clk(Tprev)] | nil >< {scheduledInst: time T, inst (SignalId <= AExp1 Op SignalId1) ;}  SchList || LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores {repeat: SgChangedMap } {wholeExec: SchListCp}
                     => 
-                  < clk(T) [prev: clk(Tprev)] | nil >< SchList || LstList || EventSchList > << insert({sgName SignalId, time T + delta}, correctVal(solve(AExp1 Op lookup-sg(SgSTR, {sgName SignalId1, time T})), SignalId, T, SgSTR, Tprev), SgSTR) | VarSTR | ConstSTR >> # DescStores {repeat: insert(SignalId,  (sg-val-changed(correctVal(solve(AExp1 Op lookup-sg(SgSTR, {sgName SignalId1, time T})), SignalId, T, SgSTR, Tprev), SignalId, T, SgSTR)), SgChangedMap) } {wholeExec: SchListCp} .
+                  < clk(T) [prev: clk(Tprev)] | nil >< SchList || LstList || EventSchList > << insert({sgName SignalId, time T + delta}, correctVal(AExp1 Op lookup-sg(SgSTR, {sgName SignalId1, time T}), SignalId, lookup-sg(SgSTR, {sgName SignalId, time T + delta}), lookup-sg(SgSTR, {sgName SignalId, time T})), SgSTR) | VarSTR | ConstSTR >> # DescStores {repeat: insert(SignalId,  (sg-val-changed(correctVal(AExp1 Op lookup-sg(SgSTR, {sgName SignalId1, time T}), SignalId, lookup-sg(SgSTR, {sgName SignalId, time T + delta}), lookup-sg(SgSTR, {sgName SignalId, time T})), SignalId , T, SgSTR)), SgChangedMap) } {wholeExec: SchListCp} .
 
   rl [parse-assign-sg-val] : [ (SignalId <= AExp1) ; IL -> SchList ] StoresVar
                             => 
@@ -630,7 +659,7 @@ mod VHDLMOD is
   eq get-port-sg(nil) = nop .
 
   op get-sgtype : SgDesc -> IOType .
-  eq get-sgtype(IOType $ IOValues) = IOType .
+  eq get-sgtype({IOType $ IOValues}) = IOType .
 
   op get-gen : List{GenDef} -> Inst [ctor] .
   eq get-gen(nil) = nop .
@@ -657,9 +686,11 @@ mod VHDLMOD is
   eq schOnTime(nil, Tnow) = nil .
   eq schOnTime({scheduledInst: time T, inst I1 } SchList, Tnow) =  {scheduledInst: time Tnow, inst I1 } schOnTime(SchList, Tnow) .
 
-  op correctVal : StdLogicVal SignalName Time Map{SgTimeTuple, Value} Time -> StdLogicVal .
-  ceq correctVal(StdLogicVal, SignalId, T, SgSTR, Tprev) = StdLogicVal if lookup-sg(SgSTR, {sgName SignalId, time T + delta}) == undefined or lookup-sg(SgSTR, {sgName SignalId, time Tprev}) == stdlogicVal('U') .
-  eq correctVal(StdLogicVal, SignalId, T, SgSTR, Tprev) = stdlogicVal('X') [owise] .
+  op correctVal : StdLogicVal SignalName Value Value -> StdLogicVal .
+  eq correctVal(StdLogicVal, SignalId, undefined, StdLogicVal2) = StdLogicVal .
+  eq correctVal(StdLogicVal, SignalId, StdLogicVal, StdLogicVal2) = StdLogicVal .
+  ***if lookup-sg(SgSTR, {sgName SignalId, time T + delta}) == undefined or lookup-sg(SgSTR, {sgName SignalId, time T}) == stdlogicVal('U') .
+  eq correctVal(StdLogicVal, SignalId, StdLogicVal1, StdLogicVal2) = resolve(StdLogicVal, StdLogicVal1) [owise] .
 
   op anySgChange : Map{String, Bool} -> Bool .
   eq anySgChange(empty) = false .

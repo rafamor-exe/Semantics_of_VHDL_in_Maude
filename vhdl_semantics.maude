@@ -177,6 +177,8 @@ fmod VHDL-INSTCOLON-MOD is
   eq AExp1 or stdlogicVal('H') = stdlogicVal('1') .
   eq stdlogicVal('0') or stdlogicVal('L') = stdlogicVal('0') .
   eq stdlogicVal('L') or stdlogicVal('0') = stdlogicVal('0') .
+  eq stdlogicVal('0') or stdlogicVal('0') = stdlogicVal('0') .
+  eq stdlogicVal('L') or stdlogicVal('L') = stdlogicVal('0') .
   eq stdlogicVal('U') or StdLogicVal2 = orU(StdLogicVal2) . 
   eq StdLogicVal1 or stdlogicVal('U') = orU(StdLogicVal1) .
   eq StdLogicVal1 or StdLogicVal2 = stdlogicVal('X') [owise] .
@@ -521,6 +523,9 @@ mod VHDLMOD is
   *** Rules
 
   *** Non-deterministic change of signal values
+  *** TODO:
+  *** - Take into account the system must be at time T (use whole Sim)
+  *** - Restrict where it could happen
   ***rl [nd-sg-val-change] : ({sgName SignalId, time T} |-> StdLogicVal , SgSTR) => insert({sgName SignalId, time T}, not StdLogicVal, SgSTR) .
 
   ***rl [entity] : < Clk | (entity Str is IL1 end Str) ; IL >< TControlSect > ValStores # DescStores 
@@ -603,10 +608,14 @@ mod VHDLMOD is
                             ***if verify-sg(out inout, SignalId, SgDescSTR) .
 
   *** TODO: Make LstList so that it can have SgNameL [LstList] to keep track of nested processes' LstLists?
-  crl [process] : < clk(T) ClockPrev | nil >< {scheduledInst: time T, inst (process SgNameL begin IL2 end process) ;}  SchList || LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores 
+  rl [process] : < clk(T) ClockPrev | nil >< {scheduledInst: time T, inst (process SgNameL begin IL2 end process) ;}  SchList || LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores 
                 => 
-                < clk(T) ClockPrev | nil >< unfoldProcess(IL2, T) SchList || SgNameL LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores 
-                if processSensitivityActivate(clk(T) ClockPrev, SgNameL, SgSTR) .
+                if processSensitivityActivate(clk(T) ClockPrev, SgNameL, SgSTR)
+                then
+                  < clk(T) ClockPrev | nil >< unfoldProcess(IL2, T) SchList || SgNameL LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores
+                else
+                 < clk(T) ClockPrev | nil >< SchList || SgNameL LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores
+                fi .
   rl [parse-process] : [ (process SgNameL begin IL2 end process) ; IL -> SchList ]
                     => 
                     [ IL -> SchList {scheduledInst: time 0 ns, inst (process SgNameL begin IL2 end process) ;} ] .
@@ -656,7 +665,7 @@ mod VHDLMOD is
   ***rl [solve-aexp] : SignalId Op AExp1 => lookup(SignalId)
   
   *** lookup rule: get value from reference from local store
-  rl [lookup] : lookup(STR, Str) => STR[Str] .
+  ***rl [lookup] : lookup(STR, Str) => STR[Str] .
   ***rl [lookup-sg] : lookup-sg(SignalId) => SgSTR[SignalId] .
 
   *** nop: test instruction
@@ -702,10 +711,10 @@ mod VHDLMOD is
 
   op processSensitivityActivate : SimClock List{SignalName} Map{SgTimeTuple, Value} -> Bool .
   eq processSensitivityActivate(Clk, nil, SgSTR) = true .
-  ceq processSensitivityActivate(clk(T) [prev: clk(Tprev)], SignalId1 SgNameL, SgSTR) = true 
-                                                                                if lookup-sg(SgSTR, {sgName SignalId1, time T}) =/= lookup-sg(SgSTR, {sgName SignalId1, time Tprev}) 
-                                                                                    or processSensitivityActivate(clk(T) [prev: clk(Tprev)], SgNameL, SgSTR) .
-  eq processSensitivityActivate(clk(T) [prev: clk(Tprev)], SignalId1 SgNameL, SgSTR) = false [owise] .
+  eq processSensitivityActivate(clk(0 ns) [prev: clk(0 ns)], NeSgNameL, SgSTR) = true .
+  eq processSensitivityActivate(clk(T) [prev: clk(Tprev)], SignalId1, SgSTR) = lookup-sg(SgSTR, {sgName SignalId1, time T}) =/= lookup-sg(SgSTR, {sgName SignalId1, time Tprev}) .
+  eq processSensitivityActivate(clk(T) [prev: clk(Tprev)], SignalId1 NeSgNameL, SgSTR) = processSensitivityActivate(clk(T) [prev: clk(Tprev)], SignalId1, SgSTR) or processSensitivityActivate(clk(T) [prev: clk(Tprev)], NeSgNameL, SgSTR) .
+  eq processSensitivityActivate(clk(T) [prev: clk(Tprev)], NeSgNameL, SgSTR) = false [owise] .
 
   op sg-val-changed : StdLogicVal SignalName Time Map{SgTimeTuple, Value} -> Bool .
   ceq sg-val-changed(StdLogicVal, SignalId, T, SgSTR) = true if StdLogicVal =/= lookup-sg(SgSTR, {sgName SignalId, time T}) .
@@ -757,6 +766,7 @@ mod VHDLMOD is
   
   *** lookup signal from signal store
   eq lookup-sg(SgSTR, SgTimeTuple) = SgSTR[SgTimeTuple] .
+  eq lookup(STR, Str) = STR[Str] .
 
   ***--------------------------
   *** VERIFICATION

@@ -5,8 +5,10 @@ rew run(
     end "example_and" ) ;
     (architecture "behaviour" of "example_and" is nop ;
       begin (
-            ("B" <= (stdlogicVal('0') or "A")) ;
-            ("C" <= (stdlogicVal('0') or "B")) ;
+          process "A" begin
+            (("B" <= (stdlogicVal('0') or "A")) ;
+            ("C" <= (stdlogicVal('0') or "B")) ;)
+          end process ;
       )
     end "behaviour" );
   ), nil) .

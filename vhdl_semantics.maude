@@ -524,10 +524,13 @@ mod VHDLMOD is
 
   *** Non-deterministic change of signal values
   *** TODO:
-  *** - Take into account the system must be at time T (use whole Sim)
+  *** - Optionality
   *** - Restrict where it could happen
-  ***rl [nd-sg-val-change] : ({sgName SignalId, time T} |-> StdLogicVal , SgSTR) => insert({sgName SignalId, time T}, not StdLogicVal, SgSTR) .
-
+  *** - Take into account that when activating
+  ***rl [nd-sg-val-change] : < clk(T) [prev: clk(Tprev)] | nil >< SchList || LstList || EventSchList > << ({sgName SignalId, time T} |-> StdLogicVal , SgSTR) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp}
+  ***                        => 
+  ***                        < clk(T) [prev: clk(Tprev)] | nil >< SchList || LstList || EventSchList > << insert({sgName SignalId, time T + delta}, correctVal(not StdLogicVal, SignalId, lookup-sg(SgSTR, {sgName SignalId, time T + delta}), lookup-sg(SgSTR, {sgName SignalId, time T})), SgSTR) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: insert(SignalId,  (sg-val-changed(correctVal(not StdLogicVal, SignalId, lookup-sg(SgSTR, {sgName SignalId, time T + delta}), lookup-sg(SgSTR, {sgName SignalId, time T})), SignalId, T, SgSTR)), SgChangedMap) } {wholeExec: SchListCp} .
+                   
   ***rl [entity] : < Clk | (entity Str is IL1 end Str) ; IL >< TControlSect > ValStores # DescStores 
   ***              => 
   ***              < Clk | IL1 exit-block(IL) >< TControlSect > ValStores # DescStores .

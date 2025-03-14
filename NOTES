@@ -1,10 +1,16 @@
 TODO:
-- [WIP] Execution steps
-- Modify [end-sim-cycle-delta] so that the schedule list is repeated for T+delta if the state of the variables has changed
+- [DONE] - NextEvent rule needs FIX
+              - [FIX] : fill blanks for T, insert new value of signal on Tnext, fill blanks on Tnext, set repeat to true and schedule on time Tnext
+- [WIP] - Non-deterministic rule to change value of signals
+              - Make it optional
+- Remove Listeting list and inst list on simulation (inst list is only useful at parsing, after that everything is triggered automatically with the scheduler)
+------------------------------------------------------------
+- [DONE] Execution steps
+- [DONE] Modify [end-sim-cycle-delta] so that the schedule list is repeated for T+delta if the state of the variables has changed
        - Consider having this checked in advance, so that it does not have to be executed N+1 times to check the state is mantained??
               - Solution: only schedule when signal changes value
                      - [Better-solution] When signal changes value prepare to repeat whole process after current delta
-       - ISSUE: time not advancing!!!!
+       - [SOLVED] ISSUE: time not advancing!!!!
               - Add condition to let time advance when T is 0 ns
               - Check assignment scheduling
 - [DONE] ONLY solve AExp when resolving an scheduled update. Any other time (when storing on SchList just store the AExp)
@@ -12,14 +18,12 @@ TODO:
        - Also, right now is not being stored like that because it solves the AExp due to the eqs defined for them (also tried commenting them but some issues arise still)
 - [DONE] FIX repeat execution and update variables at the corresponding time
        - Clock is not advancing discretely and repeats are not being scheduled propperly... 
-- [WIP] - Clock does one step more than needed I think
-- Check delta-delay-scheduled processes are being triggered using the value of the correct delta?
-- Include rule to end parse part
-- Store SchList copy when finished parsing so that it can be copied when T+delta behaviour simulation is needed
-- Adapt assignments to new modelization
-- [WIP] Adapt tests
-- Remove Listeting list and inst list on simulation (inst list is only useful at parsing, after that everything is triggered automatically with the scheduler)
-- [WIP] Non-deterministic rule to chnage value of signals
+- [DONE] - Clock does one step more than needed I think
+- [DONE] Check delta-delay-scheduled processes are being triggered using the value of the correct delta?
+- [DONE] Include rule to end parse part
+- [DONE] Store SchList copy when finished parsing so that it can be copied when T+delta behaviour simulation is needed
+- [DONE] Adapt assignments to new modelization
+- [DONE] Adapt tests
 - [DONE] -----------Rules for parsing not reducing...
        - Reason: Problem with pattern matching the stores. 
        - Did a workaround for everything that does not need stores, but it gets stuck there 

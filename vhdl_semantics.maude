@@ -507,7 +507,6 @@ mod VHDLMOD is
   rl [assign-sg-val-sch] : < clk(T) [prev: clk(Tprev)] | nil >< {scheduledInst: time T, inst (SignalId <= StdLogicVal) ;}  SchList || LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp}
                       => 
                       < clk(T) [prev: clk(Tprev)] | nil >< SchList || LstList || EventSchList > << insert({sgName SignalId, time T + delta}, correctVal(StdLogicVal, SignalId, lookup-sg(SgSTR, {sgName SignalId, time T + delta}), lookup-sg(SgSTR, {sgName SignalId, time T})), SgSTR) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: insert(SignalId,  (sg-val-changed(correctVal(StdLogicVal, SignalId, lookup-sg(SgSTR, {sgName SignalId, time T + delta}), lookup-sg(SgSTR, {sgName SignalId, time T})), SignalId, T, SgSTR)), SgChangedMap) } {wholeExec: SchListCp} .
-                      ***if verify-sg(out inout, SignalId, SgDescSTR) .
 
   rl [resolve-sg] : < clk(T) [prev: clk(Tprev)] | nil >< {scheduledInst: time T, inst (SignalId <= SignalId1 Op AExp1) ;}  SchList || LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores {repeat: SgChangedMap } {wholeExec: SchListCp}
                     => 
@@ -548,7 +547,7 @@ mod VHDLMOD is
                             if anySgChange(SgChangedMap) == true and T =/= Tnext .
   crl [end-sim-cycle-nextEv] : < clk(T) [prev: clk(Tprev)] | nil >< nil || LstList || {scheduledEvent: time Tnext, args {sgName SignalId, value StdLogicVal} } EventSchList > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp}
                             => 
-                            < clk(Tnext) [prev: clk(T)] | nil >< {scheduledInst: time Tnext, inst (SignalId <= (stdlogicVal('0') or StdLogicVal)); } || nil || EventSchList > << fill-blanks(get-sgL(SgDescSTR), SgSTR, T, Tprev) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: insertDefaultRep(SgDescSTR, SgChangedMap) } {wholeExec: SchListCp}
+                            < clk(Tnext) [prev: clk(T)] | nil >< schOnTime(SchListCp, Tnext) || nil || EventSchList > << fill-blanks-next-ev(SignalId, get-sgL(SgDescSTR), insert({sgName SignalId, time Tnext}, StdLogicVal, fill-blanks(get-sgL(SgDescSTR), SgSTR, T, Tprev)), Tnext, T) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: insert(SignalId, true, SgChangedMap) } {wholeExec: SchListCp}
                             if anySgChange(SgChangedMap) == false and T =/= Tnext .
   ***rl [end-sim] : < clk(T) [prev: clk(Tprev)] | nil >< nil || LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores {repeat: B } {wholeExec: SchListCp}
   ***              => 
@@ -622,6 +621,7 @@ mod VHDLMOD is
   eq schOnTime({scheduledInst: time T, inst I1 } SchList, Tnow) =  {scheduledInst: time Tnow, inst I1 } schOnTime(SchList, Tnow) .
 
   op correctVal : StdLogicVal SignalName Value Value -> StdLogicVal .
+  eq correctVal(StdLogicVal, SignalId, undefined, undefined) = StdLogicVal .
   eq correctVal(StdLogicVal, SignalId, undefined, StdLogicVal2) = StdLogicVal .
   eq correctVal(StdLogicVal, SignalId, StdLogicVal, StdLogicVal2) = StdLogicVal .
   ***if lookup-sg(SgSTR, {sgName SignalId, time T + delta}) == undefined or lookup-sg(SgSTR, {sgName SignalId, time T}) == stdlogicVal('U') .
@@ -636,6 +636,12 @@ mod VHDLMOD is
   eq fill-blanks(nil, SgSTR, T, Tprev) = SgSTR .
   ceq fill-blanks(SignalId1 SignalIdL, SgSTR, T, Tprev) = insert({sgName SignalId1, time T}, SgSTR[{sgName SignalId1, time Tprev}], fill-blanks(SignalIdL, SgSTR, T, Tprev)) if SgSTR[{sgName SignalId1, time T}] == undefined .
   eq fill-blanks(SignalId1 SignalIdL, SgSTR, T, Tprev) = fill-blanks(SignalIdL, SgSTR, T, Tprev) .
+
+  op fill-blanks-next-ev : SignalName List{SignalName} Map{SgTimeTuple, Value} Time Time -> Map{SgTimeTuple, Value} .
+  eq fill-blanks-next-ev(SignalId, nil, SgSTR, Tnext, T) = SgSTR .
+  eq fill-blanks-next-ev(SignalId, SignalId SignalIdL, SgSTR, Tnext, T) = fill-blanks-next-ev(SignalId, SignalIdL, SgSTR, Tnext, T) .
+  ceq fill-blanks-next-ev(SignalId, SignalId1 SignalIdL, SgSTR, Tnext, T) = insert({sgName SignalId1, time Tnext}, SgSTR[{sgName SignalId1, time T}], fill-blanks(SignalIdL, SgSTR, Tnext, T)) if SgSTR[{sgName SignalId1, time Tnext}] == undefined and SignalId =/= SignalId1 .
+  eq fill-blanks-next-ev(SignalId, SignalId1 SignalIdL, SgSTR, Tnext, T) = fill-blanks-next-ev(SignalId, SignalIdL, SgSTR, Tnext, T) [owise] .
 
   op get-sgL : Map{String, SgDesc} -> List{SignalName} .
   eq get-sgL(empty) = nil .

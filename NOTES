@@ -1,10 +1,13 @@
 TODO:
-- [DONE] - NextEvent rule needs FIX
-              - [FIX] : fill blanks for T, insert new value of signal on Tnext, fill blanks on Tnext, set repeat to true and schedule on time Tnext
+- [WIP] - If statement
+              - [WIP] Comparison operators definition
+              - [DONE] Inst definition
 - [WIP] - Non-deterministic rule to change value of signals
               - Make it optional
 - Remove Listeting list and inst list on simulation (inst list is only useful at parsing, after that everything is triggered automatically with the scheduler)
 ------------------------------------------------------------
+- [DONE] - NextEvent rule needs FIX
+              - [FIX] : fill blanks for T, insert new value of signal on Tnext, fill blanks on Tnext, set repeat to true and schedule on time Tnext
 - [DONE] Execution steps
 - [DONE] Modify [end-sim-cycle-delta] so that the schedule list is repeated for T+delta if the state of the variables has changed
        - Consider having this checked in advance, so that it does not have to be executed N+1 times to check the state is mantained??

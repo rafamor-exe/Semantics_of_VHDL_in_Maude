@@ -124,7 +124,7 @@ fmod VHDL-INSTCOLON-MOD is
   protecting LIST{GenDef} .
   
 
-  sorts Inst InstColon EntityInst EntityInstColon Port SignalName VarConstName SgDecl SgAssign AExp Term Op Generic .
+  sorts Inst InstColon EntityInst EntityInstColon Port SignalName VarConstName SgDecl SgAssign AExp Term Op CompOp Generic .
   subsorts Port Generic < EntityInst .
   subsorts EntityInst SgDecl SgAssign < Inst .
   *** The following order causes Advisory messages on loading the module
@@ -133,6 +133,7 @@ fmod VHDL-INSTCOLON-MOD is
   subsorts Int StdLogicVal < AExp .
 
   ops and or nand nor xnor sg-xor : -> Op [ctor] . 
+  ops = /= < > : -> CompOp [ctor] .
   ***op _ _ _ : Term Op AExp -> AExp [ctor] .
 
   vars Op : Op .
@@ -156,7 +157,9 @@ fmod VHDL-INSTCOLON-MOD is
   var To0 : To0 .
   var To1 : To1 .
   vars AExp1 AExp2 : AExp .
+
   op ___ : AExp Op AExp -> AExp [ctor] .
+  op ___ : AExp CompOp AExp -> Bool [ctor] .
 
   op not_ : AExp -> AExp [ctor] .
   eq not stdlogicVal('U') = stdlogicVal('U') .
@@ -230,6 +233,7 @@ fmod VHDL-INSTCOLON-MOD is
 
   op _ <= _ : SignalName AExp -> SgAssign [ctor] .
 
+  *** Resolve multiple values on the same delta. Based on STD_LOGIC standard.
   op resolve : StdLogicVal StdLogicVal -> StdLogicVal .
   eq resolve(stdlogicVal('U'), StdLogicVal2) = stdlogicVal('U') .
   eq resolve(StdLogicVal1, stdlogicVal('U')) = stdlogicVal('U') .
@@ -244,6 +248,9 @@ fmod VHDL-INSTCOLON-MOD is
   eq resolve(stdlogicVal('L'), stdlogicVal('H')) = stdlogicVal('W') .
   eq resolve(stdlogicVal('H'), stdlogicVal('L')) = stdlogicVal('W') .
   eq resolve(StdLogicVal1, StdLogicVal2) = stdlogicVal('X') [owise] .
+
+  eq (StdLogicVal1 = StdLogicVal2) = (StdLogicVal1 == StdLogicVal2) .
+  eq (StdLogicVal1 /= StdLogicVal2) = (StdLogicVal1 =/= StdLogicVal2) .
 
 endfm
 
@@ -315,6 +322,8 @@ mod VHDLMOD is
   *** Declare sorts to be used and hierarchy between them.
   sorts VHDLSim VHDLBareSim VHDLCompleteSim Parser ParserTime ParserInsts Code Signal Var Const Clock SimClock ClockPrev Und Error Entity Architecture SgDescStore TimeControlSection ValueStores DescStores . ***sorts VHDLSim Code Entity Port Signal SignalName Var Const VarConstName Value Architecture Process Clock ScheduledInst Und Error .
   sorts Process ProcessSensitivity ProcessNoSensitivity .
+  sorts SeqStatement .
+  sorts IfThen EndIf ElsifStatement ElseStatement NullStatement .
   sorts EmptyList InstBlock StructuredInstList . ***sorts Inst EmptyList NeList{Inst} List{Inst} InstBlock StructuredInstList .
   sorts EventSchList .
   sorts NeScheduleList ScheduleList NeListeningList ListeningList .
@@ -327,7 +336,9 @@ mod VHDLMOD is
   subsorts Code < VHDLBareSim .
 
   subsorts ProcessSensitivity ProcessNoSensitivity < Process .
-  subsorts Entity Architecture Process Error < Inst .
+  subsorts Entity Architecture Process Error SeqStatement < Inst .
+  subsorts IfThen < SeqStatement .
+  subsorts NullStatement < ElsifStatement ElseStatement .
 
   op und : -> Und [ctor] .
   op EmptyList : -> EmptyList [ctor] .
@@ -352,6 +363,9 @@ mod VHDLMOD is
   op [prev: _] : Clock -> ClockPrev [ctor] .
   op _ _ : Clock ClockPrev -> SimClock [ctor] .
 
+  *** null is an internal representation for a lack of statement (placeholder)
+  op null : -> NullStatement [ctor] .
+
   *** Instruction ops declarations (that include inner instruction lists)
   
   *** - Entity
@@ -366,6 +380,19 @@ mod VHDLMOD is
   op process _ begin _ end process : List{SignalName} List{InstColon} -> ProcessSensitivity [ctor] .
   op process begin _ end process : List{InstColon} -> ProcessNoSensitivity [ctor] .
   op end process : -> Inst [ctor] .
+
+  *** - If statement
+  *** TODO: defined precedence
+  ***       - Example: red if true then nop ; (elsif true then nop ; elsif true then nop ;) else nop ; end if 
+  op end if : -> EndIf [ctor] .
+  op if _ then _ _ _ _ : Bool List{InstColon} ElsifStatement ElseStatement EndIf -> IfThen [ctor] .
+  op if _ then _ _ _ : Bool List{InstColon} ElseStatement EndIf -> IfThen [ctor] .
+  op if _ then _ _ _ : Bool List{InstColon} ElsifStatement EndIf -> IfThen [ctor] .
+  op if _ then _ _ : Bool List{InstColon} EndIf -> IfThen [ctor] .
+  op elsif _ then _ _ : Bool List{InstColon} ElsifStatement -> ElsifStatement [ctor] .
+  op elsif _ then _ : Bool List{InstColon} -> ElsifStatement [ctor] .
+  op else _ : List{InstColon} -> ElseStatement [ctor] .
+  
 
 
   *** - Signal (declaration)
@@ -432,6 +459,9 @@ mod VHDLMOD is
   var B : Bool .
   var SgChangedMap : Map{String, Bool} .
   var SignalIdL : List{SignalName} .
+  var ElsifSt : ElsifStatement .
+  var ElseSt : ElseStatement .
+  var EndIf : EndIf .
 
   *** Workflow: run(IL, EventSchList) -> Parse -> insitSimArch -> Simulation Loop
   op run : List{InstColon} List{Transaction} -> VHDLCompleteSim [ctor] .
@@ -458,6 +488,12 @@ mod VHDLMOD is
   eq entity Str is end Str = entity Str is nil end Str .
   *** A process declared without a sensitivity list is equal to the process with an empty sensitivity list 
   eq process begin IL end process = process nil begin IL end process .
+  
+  *** An if statement can have any number of elsif sub-statements and 0 or 1 else statements
+  eq if B then IL EndIf = if B then IL null null EndIf .
+  eq if B then IL ElseSt EndIf = if B then IL null ElseSt EndIf .
+  eq if B then IL ElsifSt EndIf = if B then IL ElsifSt null EndIf .
+  eq elsif B then IL = elsif B then IL null .
 
   *** TODO: Restrict values of SgSTR to StdLogic with cmb
 
@@ -502,6 +538,15 @@ mod VHDLMOD is
   rl [parse-architecture] : [ (architecture Str of Str2 is IL1 begin IL2 end Str) ; IL -> SchList ] StoresVar
                           => 
                           [ IL1 exit-block(IL2 exit-block(IL)) -> SchList ] StoresVar .  
+                          
+  rl [parse-process] : [ (process SgNameL begin IL2 end process) ; IL -> SchList ]
+                    => 
+                    [ IL -> SchList {scheduledInst: time 0 ns, inst (process SgNameL begin IL2 end process) ;} ] .
+
+  crl [parse-assign-sg-val] : [ (SignalId <= AExp1) ; IL -> SchList ] << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > 
+                            => 
+                            [ IL -> SchList {scheduledInst: time 0 ns, inst (SignalId <= AExp1) ;} ] << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > 
+                            if verify-sg(out inout, SignalId, SgDescSTR) .
 
   *** assign-sg-val : assign a value to a signal after solving all AExp and signal lookups
   rl [assign-sg-val-sch] : < clk(T) [prev: clk(Tprev)] | nil >< {scheduledInst: time T, inst (SignalId <= StdLogicVal) ;}  SchList || LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp}
@@ -516,22 +561,21 @@ mod VHDLMOD is
                     => 
                   < clk(T) [prev: clk(Tprev)] | nil >< SchList || LstList || EventSchList > << insert({sgName SignalId, time T + delta}, correctVal(AExp1 Op lookup-sg(SgSTR, {sgName SignalId1, time T}), SignalId, lookup-sg(SgSTR, {sgName SignalId, time T + delta}), lookup-sg(SgSTR, {sgName SignalId, time T})), SgSTR) | VarSTR | ConstSTR >> # DescStores {repeat: insert(SignalId,  (sg-val-changed(correctVal(AExp1 Op lookup-sg(SgSTR, {sgName SignalId1, time T}), SignalId, lookup-sg(SgSTR, {sgName SignalId, time T + delta}), lookup-sg(SgSTR, {sgName SignalId, time T})), SignalId , T, SgSTR)), SgChangedMap) } {wholeExec: SchListCp} .
 
-  crl [parse-assign-sg-val] : [ (SignalId <= AExp1) ; IL -> SchList ] << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > 
-                            => 
-                            [ IL -> SchList {scheduledInst: time 0 ns, inst (SignalId <= AExp1) ;} ] << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > 
-                            if verify-sg(out inout, SignalId, SgDescSTR) .
-
   rl [process] : < clk(T) ClockPrev | nil >< {scheduledInst: time T, inst (process SgNameL begin IL2 end process) ;}  SchList || LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores 
                 => 
                 if processSensitivityActivate(clk(T) ClockPrev, SgNameL, SgSTR)
                 then
-                  < clk(T) ClockPrev | nil >< unfoldProcess(IL2, T) SchList || SgNameL LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores
+                  < clk(T) ClockPrev | nil >< unfold(IL2, T) SchList || SgNameL LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores
                 else
                  < clk(T) ClockPrev | nil >< SchList || SgNameL LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores
                 fi .
-  rl [parse-process] : [ (process SgNameL begin IL2 end process) ; IL -> SchList ]
-                    => 
-                    [ IL -> SchList {scheduledInst: time 0 ns, inst (process SgNameL begin IL2 end process) ;} ] .
+  rl [if-then] : < clk(T) [prev: clk(Tprev)] | nil >< {scheduledInst: time T, inst (if B then IL ElsifSt ElseSt EndIf) ;}  SchList || LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores {repeat: SgChangedMap } {wholeExec: SchListCp}
+                => 
+                if B then
+                  < clk(T) [prev: clk(Tprev)] | nil >< unfold(IL, T) SchList || LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores {repeat: SgChangedMap } {wholeExec: SchListCp}
+                else
+                  < clk(T) [prev: clk(Tprev)] | nil >< unfold(schRestIf(ElsifSt, ElseSt), T) SchList || LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores {repeat: SgChangedMap } {wholeExec: SchListCp}
+                fi .
 
   ***rl [end-parse] : [ nil -> SchList ] StoresVar < events: EventSchList >
   ***                =>
@@ -601,9 +645,9 @@ mod VHDLMOD is
   op decl-sg : List{SignalName} IOValues -> Inst [ctor] .
   eq decl-sg(nil, IOValues) = nop .
 
-  op unfoldProcess : List{InstColon} Time -> List{ScheduledInst} [ctor] .
-  eq unfoldProcess(nil, T) = nil .
-  eq unfoldProcess(I1 IL, T) = {scheduledInst: time T, inst I1} unfoldProcess(IL, T) .
+  op unfold : List{InstColon} Time -> List{ScheduledInst} [ctor] .
+  eq unfold(nil, T) = nil .
+  eq unfold(I1 IL, T) = {scheduledInst: time T, inst I1} unfold(IL, T) .
 
   op processSensitivityActivate : SimClock List{SignalName} Map{SgTimeTuple, Value} -> Bool .
   eq processSensitivityActivate(Clk, nil, SgSTR) = true .
@@ -620,6 +664,7 @@ mod VHDLMOD is
   eq schOnTime(nil, Tnow) = nil .
   eq schOnTime({scheduledInst: time T, inst I1 } SchList, Tnow) =  {scheduledInst: time Tnow, inst I1 } schOnTime(SchList, Tnow) .
 
+  *** TODO: stdlogicval2 not needed?
   op correctVal : StdLogicVal SignalName Value Value -> StdLogicVal .
   eq correctVal(StdLogicVal, SignalId, undefined, undefined) = StdLogicVal .
   eq correctVal(StdLogicVal, SignalId, undefined, StdLogicVal2) = StdLogicVal .
@@ -647,6 +692,13 @@ mod VHDLMOD is
   eq get-sgL(empty) = nil .
   eq get-sgL((SignalId |-> SgDesc, SgDescSTR)) = SignalId get-sgL(SgDescSTR) .
 
+  op schRestIf : ElsifStatement ElseStatement -> List{InstColon} .
+  eq schRestIf(null, null) = nil .
+  eq schRestIf(null, else IL) = IL .
+  eq schRestIf(elsif true then IL ElsifSt, ElseSt) = IL .
+  eq schRestIf(elsif false then IL ElsifSt, ElseSt) = schRestIf(ElsifSt, ElseSt) .
+
+
   *** ------------
 
   op ___ : SignalName Op AExp -> AExp [ctor] .
@@ -666,6 +718,12 @@ mod VHDLMOD is
   ***eq AExp1 xor SignalId = AExp1 xor lookup-sg(SignalId) .
   op not _ : SignalName -> AExp [ctor] .
   eq not SignalId = stdlogicVal('1') xor SignalId .
+
+  op ___ : SignalName CompOp AExp -> Bool [ctor] .
+  ***eq SignalId Op AExp1 = lookup-sg(SignalId, SgSTR) Op AExp1 .
+  op ___ : AExp CompOp SignalName -> Bool [ctor] .
+  ***eq AExp1 Op SignalId = AExp1 Op lookup-sg(SignalId, SgSTR) .
+  op ___ : SignalName CompOp SignalName -> Bool [ctor] .
   
   *** lookup signal from signal store
   eq lookup-sg(SgSTR, SgTimeTuple) = SgSTR[SgTimeTuple] .

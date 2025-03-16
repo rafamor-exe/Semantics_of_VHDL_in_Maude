@@ -31,14 +31,14 @@ fmod VHDL-VALUE-MOD is
   protecting STRING .
   protecting VHDL-IODEF-MOD .
 
-  sorts StdLogic Value IntVal StdLogicVal TimeVal NatVal PosVal BoolVal .
+  sorts StdLogic Value IntVal StdLogicVal TimeVal NatVal PosVal BoolVal BitVal .
   sorts Time TimeUnit TimeDelta Delta Bit StdLogicAux .
   sorts To1 To0 .
-  subsorts BoolVal PosVal NatVal IntVal StdLogicVal TimeVal < Value . *** checkear. añadir un wrapper a los tipos
+  subsorts BitVal BoolVal PosVal NatVal IntVal StdLogicVal TimeVal < Value . *** checkear. añadir un wrapper a los tipos
   subsorts Bit StdLogicAux < StdLogic < StdLogicVal .
   subsorts TimeDelta < Time .
 
-  op bitVal : Bit -> StdLogicVal [ctor] .
+  op bitVal : Bit -> BitVal [ctor] .
   op intVal : Int -> IntVal [ctor] .
   op stdlogicVal : StdLogic -> StdLogicVal [ctor] .
   op timeVal : Time -> TimeVal [ctor] .
@@ -85,12 +85,13 @@ fmod VHDL-VALUE-MOD is
   vars TDelta1 TDelta2 : Delta .
   var T : Time .
   vars N1 N2 : Nat .
+
   eq delta(N1) + delta(N2) = delta(N1 + N2) .
   eq (T + TDelta1) + TDelta2 = T + (TDelta1 + TDelta2) .
 
   op default : IOValues -> Value .
   eq default("std_logic") = stdlogicVal('U') .
-  eq default(bit) = stdlogicVal('0') .
+  eq default(bit) = bitVal('0') .
 
   ***var StdLogic : StdLogic .
   ***mb 'H' : To1 .
@@ -158,9 +159,12 @@ fmod VHDL-INSTCOLON-MOD is
   *** - Generic
   op generic (_) : NeList{GenDef} -> Generic [ctor] .
 
+  vars Value Value1 Value2 : Value .
   vars StdLogicVal StdLogicVal1 StdLogicVal2 : StdLogicVal .
   vars BoolVal BoolVal1 BoolVal2 : BoolVal .
+  vars BitVal BitVal1 BitVal2 : BitVal .
   vars B1 B2 : Bool .
+  vars Bit1 Bit2 : Bit .
   var ZWLH : StdLogicAux .
   var To0 : To0 .
   var To1 : To1 .
@@ -170,6 +174,8 @@ fmod VHDL-INSTCOLON-MOD is
   op ___ : AExp CompOp AExp -> BoolVal [ctor] .
 
   op not_ : AExp -> AExp [ctor] .
+  eq not bitVal('0') = bitVal('1') .
+  eq not bitVal('1') = bitVal('0') .
   eq not stdlogicVal('U') = stdlogicVal('U') .
   eq not stdlogicVal('0') = stdlogicVal('1') .
   eq not stdlogicVal('1') = stdlogicVal('0') .
@@ -180,6 +186,11 @@ fmod VHDL-INSTCOLON-MOD is
   eq not boolVal(B1) = boolVal(not B1) .
 
   ***op _or_ : StdLogic AExp -> AExp [ctor] .
+  eq bitVal('1') or bitVal(Bit2) = bitVal('1') .
+  eq bitVal(Bit1) or bitVal('1') = bitVal('1') .
+  eq bitVal('0') or bitVal('0') = bitVal('0') .
+  eq bitVal('0') or stdlogicVal('0') = stdlogicVal('0') .
+  eq stdlogicVal('0') or bitVal('0') = stdlogicVal('0') .
   eq stdlogicVal('1') or AExp1 = stdlogicVal('1') .
   eq stdlogicVal('H') or AExp1 = stdlogicVal('1') .
   eq AExp1 or stdlogicVal('1') = stdlogicVal('1') .
@@ -200,6 +211,11 @@ fmod VHDL-INSTCOLON-MOD is
   eq orU(StdLogicVal) = stdlogicVal('U') [owise] .
 
   ***op _and_ : StdLogic AExp -> AExp [ctor] .
+  eq bitVal('0') and AExp1 = bitVal('0') .
+  eq AExp1 and bitVal('0') = bitVal('0') .
+  eq bitVal('1') and bitVal('1') = bitVal('1') .
+  eq bitVal('1') and stdlogicVal('1') = stdlogicVal('1') .
+  eq stdlogicVal('1') and bitVal('1') = stdlogicVal('1') .
   eq stdlogicVal('1') and stdlogicVal('H') = stdlogicVal('1') .
   eq stdlogicVal('H') and stdlogicVal('1') = stdlogicVal('1') .
   eq stdlogicVal('0') and AExp1 =  stdlogicVal('0') .
@@ -220,6 +236,14 @@ fmod VHDL-INSTCOLON-MOD is
   ***op _xor_ : AExp AExp -> AExp [ditto ctor] .
   ***ceq AExp1 xor AExp2 = stdlogicVal('1') if AExp1 =/= AExp2 /\ (AExp1 == stdlogicVal('1') or AExp2 == stdlogicVal('1')) .
   ***eq AExp1 xor AExp2 =  stdlogicVal('0') [owise] .
+  eq bitVal(Bit1) xor bitVal(Bit1) = bitVal('0') .
+  eq bitVal(Bit1) xor bitVal(Bit2) = bitVal('1') [owise] .
+  ***TODO: Check if this relation should be allowed
+  eq stdlogicVal(Bit1) xor bitVal(Bit1) = stdlogicVal('0') .
+  eq stdlogicVal(Bit1) xor bitVal(Bit2) = stdlogicVal('1') [owise] .
+  eq bitVal(Bit1) xor stdlogicVal(Bit1) = stdlogicVal('0') .
+  eq bitVal(Bit1) xor stdlogicVal(Bit2) = stdlogicVal('1') [owise] .
+
   eq stdlogicVal('1') xor stdlogicVal('0') = stdlogicVal('1') .
   eq stdlogicVal('0') xor stdlogicVal('1') = stdlogicVal('1') .
   eq stdlogicVal('1') xor stdlogicVal('L') = stdlogicVal('1') .
@@ -240,6 +264,7 @@ fmod VHDL-INSTCOLON-MOD is
 
 
   ***op _xand_ : AExp AExp -> AExp [ctor] .
+  *** COmposite operators
   eq AExp1 nand AExp2 = not (AExp1 and AExp2) .
   eq AExp1 nor AExp2 = not (AExp1 or AExp2) .
   eq AExp1 xnor AExp2 = not (AExp1 xor AExp2) .
@@ -248,6 +273,7 @@ fmod VHDL-INSTCOLON-MOD is
   ***eq StdLogicVal1 sg-xor StdLogicVal2 =  StdLogicVal1 xor StdLogicVal2 [owise] .
 
   op _ <= _ : SignalName AExp -> SgAssign [ctor] .
+  ***op _ <= _ : SignalName SignalName -> SgAssign [ctor] .
 
   *** Resolve multiple values on the same delta. Based on STD_LOGIC standard.
   op resolve : StdLogicVal StdLogicVal -> StdLogicVal .
@@ -265,11 +291,11 @@ fmod VHDL-INSTCOLON-MOD is
   eq resolve(stdlogicVal('H'), stdlogicVal('L')) = stdlogicVal('W') .
   eq resolve(StdLogicVal1, StdLogicVal2) = stdlogicVal('X') [owise] .
 
-  eq (StdLogicVal1 = StdLogicVal2) = boolVal(StdLogicVal1 == StdLogicVal2) .
-  eq (StdLogicVal1 /= StdLogicVal2) = boolVal(StdLogicVal1 =/= StdLogicVal2) .
+  eq (Value1 = Value2) = boolVal(Value1 == Value2) .
+  eq (Value1 /= Value2) = boolVal(Value1 =/= Value2) .
 
-  eq (BoolVal1 = BoolVal2) = boolVal(BoolVal1 == BoolVal2) .
-  eq (BoolVal1 /= BoolVal2) = boolVal(BoolVal1 =/= BoolVal2) .
+  ***eq (BoolVal1 = BoolVal2) = boolVal(BoolVal1 == BoolVal2) .
+  ***eq (BoolVal1 /= BoolVal2) = boolVal(BoolVal1 =/= BoolVal2) .
   eq (boolVal(false) < boolVal(true)) = boolVal(true) .
   eq (BoolVal1 < BoolVal2) = boolVal(false) [owise] .
   eq (boolVal(false) "<=" BoolVal2) = boolVal(true) .
@@ -278,6 +304,17 @@ fmod VHDL-INSTCOLON-MOD is
   eq (BoolVal1 > BoolVal2) = boolVal(false) [owise] .
   eq (boolVal(true) ">=" BoolVal2) = boolVal(true) .
   eq (BoolVal1 ">=" BoolVal2) = boolVal(false) [owise] .
+
+  ***eq (BitVal1 = BitVal2) = boolVal(BitVal1 == BitVal2) .
+  ***eq (BitVal1 /= BitVal2) = boolVal(BitVal1 =/= BitVal2) .
+  eq (bitVal('0') < bitVal('1')) = boolVal(true) .
+  eq (BitVal1 < BitVal2) = boolVal(false) [owise] .
+  eq (bitVal('0') "<=" BitVal2) = boolVal(true) .
+  eq (BitVal1 "<=" BitVal2) = boolVal(false) [owise] .
+  eq (bitVal('1') > bitVal('0')) = boolVal(true) .
+  eq (BitVal1 > BitVal2) = boolVal(false) [owise] .
+  eq (bitVal('1') ">=" BitVal2) = boolVal(true) .
+  eq (BitVal1 ">=" BitVal2) = boolVal(false) [owise] .
 
 endfm
 

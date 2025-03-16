@@ -31,12 +31,14 @@ fmod VHDL-VALUE-MOD is
   protecting STRING .
   protecting VHDL-IODEF-MOD .
 
-  sorts StdLogic Value IntVal StdLogicVal TimeVal NatVal PosVal BoolVal BitVal .
-  sorts Time TimeUnit TimeDelta Delta Bit StdLogicAux .
+  sorts StdLogic Value IntVal StdLogicVal TimeVal NatVal PosVal BoolVal BitVal NumVal .
+  sorts PhysVal Time TimeUnit TimeDelta Delta Bit StdLogicAux .
   sorts To1 To0 .
   subsorts BitVal BoolVal PosVal NatVal IntVal StdLogicVal TimeVal < Value . *** checkear. añadir un wrapper a los tipos
   subsorts Bit StdLogicAux < StdLogic < StdLogicVal .
   subsorts TimeDelta < Time .
+  subsorts TimeVal < PhysVal .
+  ***subsorts IntVal PhysVal < NumVal .
 
   op bitVal : Bit -> BitVal [ctor] .
   op intVal : Int -> IntVal [ctor] .
@@ -74,6 +76,8 @@ fmod VHDL-VALUE-MOD is
   eq to-fs(R min) = to-fs((R * 60) sec) .
   eq to-fs(R hr) = to-fs((R * 60) min) .
 
+
+
   *** Delta delays
   op delta : Nat -> Delta [ctor] .
   op delta : -> Delta [ctor] .
@@ -83,8 +87,13 @@ fmod VHDL-VALUE-MOD is
   op _+_ : Delta Delta -> Delta [assoc comm ctor] .
 
   vars TDelta1 TDelta2 : Delta .
-  var T : Time .
+  vars T T1 T2 : Time .
   vars N1 N2 : Nat .
+  var TUnit : TimeUnit .
+
+  op get-val-time : Time -> Rat .
+  eq get-val-time(R TUnit) = R .
+  eq get-val-time((R TUnit) + TDelta1) = R .
 
   eq delta(N1) + delta(N2) = delta(N1 + N2) .
   eq (T + TDelta1) + TDelta2 = T + (TDelta1 + TDelta2) .
@@ -132,15 +141,24 @@ fmod VHDL-INSTCOLON-MOD is
   
 
   sorts Inst InstColon EntityInst EntityInstColon Port SignalName VarConstName SgDecl SgAssign AExp Term Op CompOp Generic .
+  sorts PhysNumBinOp NumUnOp IBinOp NumBinOp .
   subsorts Port Generic < EntityInst .
   subsorts EntityInst SgDecl SgAssign < Inst .
   *** The following order causes Advisory messages on loading the module
   ***subsorts EntityInstColon < InstColon .
   subsorts String < SignalName VarConstName .
   subsorts Value < AExp .
+  subsorts NumBinOp < IBinOp .
+  subsorts NumBinOp < PhysNumBinOp .
 
   ops and or nand nor xnor xor : -> Op [ctor] . 
   ops = /= < > "<=" ">=" : -> CompOp [ctor] .
+  ops +_ -_ : IntVal -> IntVal [ctor] .
+  ops +_ -_ : PhysVal -> PhysVal [ctor] .
+  op abs : IntVal -> IntVal [ctor] .
+  op abs : PhysVal -> PhysVal [ctor] .
+  ops + - : -> NumBinOp [ctor] .
+  ops * / mod rem ** : -> IBinOp [ctor] .
   ***op _ _ _ : Term Op AExp -> AExp [ctor] .
 
   vars Op : Op .
@@ -159,16 +177,24 @@ fmod VHDL-INSTCOLON-MOD is
   *** - Generic
   op generic (_) : NeList{GenDef} -> Generic [ctor] .
 
+  op _ <= _ : SignalName AExp -> SgAssign [ctor] .
+  ***op _ <= _ : SignalName SignalName -> SgAssign [ctor] .
+
   vars Value Value1 Value2 : Value .
   vars StdLogicVal StdLogicVal1 StdLogicVal2 : StdLogicVal .
   vars BoolVal BoolVal1 BoolVal2 : BoolVal .
   vars BitVal BitVal1 BitVal2 : BitVal .
+  vars IntVal IntVal1 IntVal2 : IntVal .
+  vars Int1 Int2 : Int .
   vars B1 B2 : Bool .
   vars Bit1 Bit2 : Bit .
   var ZWLH : StdLogicAux .
   var To0 : To0 .
   var To1 : To1 .
   vars AExp1 AExp2 : AExp .
+  vars T T1 T2 : Time .
+  vars R R1 R2 : Rat .
+  vars TUnit1 TUnit2 : TimeUnit . 
 
   op ___ : AExp Op AExp -> AExp [ctor] .
   op ___ : AExp CompOp AExp -> BoolVal [ctor] .
@@ -272,9 +298,6 @@ fmod VHDL-INSTCOLON-MOD is
   ***ceq StdLogicVal1 sg-xor AExp2 = stdlogicVal('1') if StdLogicVal1 =/= AExp2 /\ (StdLogicVal1 == stdlogicVal('1') or AExp2 == stdlogicVal('1')) .
   ***eq StdLogicVal1 sg-xor StdLogicVal2 =  StdLogicVal1 xor StdLogicVal2 [owise] .
 
-  op _ <= _ : SignalName AExp -> SgAssign [ctor] .
-  ***op _ <= _ : SignalName SignalName -> SgAssign [ctor] .
-
   *** Resolve multiple values on the same delta. Based on STD_LOGIC standard.
   op resolve : StdLogicVal StdLogicVal -> StdLogicVal .
   eq resolve(stdlogicVal('U'), StdLogicVal2) = stdlogicVal('U') .
@@ -315,6 +338,37 @@ fmod VHDL-INSTCOLON-MOD is
   eq (BitVal1 > BitVal2) = boolVal(false) [owise] .
   eq (bitVal('1') ">=" BitVal2) = boolVal(true) .
   eq (BitVal1 ">=" BitVal2) = boolVal(false) [owise] .
+
+  eq (intVal(Int1) < intVal(Int2)) = boolVal(Int1 < Int2) .
+  eq (intVal(Int1) "<=" intVal(Int2)) = boolVal(Int1 <= Int2) .
+  eq (intVal(Int1) > intVal(Int2)) = boolVal(Int1 > Int2) .
+  eq (intVal(Int1) ">=" intVal(Int2)) = boolVal(Int1 >= Int2) .
+
+
+  op __ : NumUnOp IntVal -> IntVal [ctor] .
+  op ___ : IntVal IBinOp IntVal -> IntVal [ctor] .
+
+  ***eq + intVal(Int1) = intVal(+ Int1) .  
+  eq - intVal(Int1) = intVal(- Int1) .
+  eq abs(intVal(Int1)) = intVal(abs(Int1)) .
+
+  eq intVal(Int1) + intVal(Int2) = intVal(Int1 + Int2) .
+  eq intVal(Int1) - intVal(Int2) = intVal(Int1 - Int2) .
+  eq intVal(Int1) * intVal(Int2) = intVal(Int1 * Int2) .
+  eq intVal(Int1) / intVal(Int2) = intVal(Int1 quo Int2) .
+  *** By definition of the Standard: A rem B is the remainder with the sign of A (which coincides with rem operator in Maude).
+  eq intVal(Int1) rem intVal(Int2) = intVal(Int1 rem Int2) .
+  *** By definition of the Standard: A mod B is the remainder with the sign of B.
+  eq intVal(Int1) mod intVal(Int2) = intVal((Int2 / abs(Int2))*(Int1 / abs(Int1))*(Int1 rem Int2)) .
+  eq intVal(Int1) ** intVal(Int2) = intVal(Int1 ^ Int2) .
+
+  op __ : NumUnOp PhysVal -> PhysVal [ctor] .
+  eq - timeVal(R TUnit1) = timeVal((- R) TUnit1) .
+  eq abs(timeVal(R TUnit1)) = timeVal(abs(R) TUnit1) .
+
+  op ___ : PhysVal PhysNumBinOp PhysVal -> PhysVal [ctor] .
+  eq timeVal(T1) + timeVal(T2) = timeVal((get-val-time(to-fs(T1)) + get-val-time(to-fs(T2))) fs) .
+  eq timeVal(T1) - timeVal(T2) = timeVal((get-val-time(to-fs(T1)) - get-val-time(to-fs(T2))) fs) .
 
 endfm
 

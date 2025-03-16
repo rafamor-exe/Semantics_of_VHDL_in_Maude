@@ -31,10 +31,10 @@ fmod VHDL-VALUE-MOD is
   protecting STRING .
   protecting VHDL-IODEF-MOD .
 
-  sorts StdLogic Value IntVal StdLogicVal TimeVal NatVal .
+  sorts StdLogic Value IntVal StdLogicVal TimeVal NatVal PosVal .
   sorts Time TimeUnit TimeDelta Delta Bit StdLogicAux .
   sorts To1 To0 .
-  subsorts NatVal IntVal StdLogicVal TimeVal < Value . *** checkear. añadir un wrapper a los tipos
+  subsorts PosVal NatVal IntVal StdLogicVal TimeVal < Value . *** checkear. añadir un wrapper a los tipos
   subsorts Bit StdLogicAux < StdLogic < StdLogicVal .
   subsorts TimeDelta < Time .
 
@@ -42,6 +42,7 @@ fmod VHDL-VALUE-MOD is
   op stdlogicVal : StdLogic -> StdLogicVal [ctor] .
   op timeVal : Time -> TimeVal [ctor] .
   op natVal : Nat -> NatVal [ctor] .
+  op posVal : NzNat -> PosVal [ctor] .
 
   ops TRUE FALSE : -> Bool [ctor] .
   eq TRUE = true .
@@ -133,9 +134,9 @@ fmod VHDL-INSTCOLON-MOD is
   *** The following order causes Advisory messages on loading the module
   ***subsorts EntityInstColon < InstColon .
   subsorts String < SignalName VarConstName .
-  subsorts Int StdLogicVal < AExp .
+  subsorts Value < AExp .
 
-  ops and or nand nor xnor sg-xor : -> Op [ctor] . 
+  ops and or nand nor xnor xor : -> Op [ctor] . 
   ops = /= < > : -> CompOp [ctor] .
   ***op _ _ _ : Term Op AExp -> AExp [ctor] .
 
@@ -206,7 +207,7 @@ fmod VHDL-INSTCOLON-MOD is
   eq orU('L') = stdlogicVal('0') .
   eq orU(StdLogicVal) = stdlogicVal('U') [owise] .
 
-  op _xor_ : AExp AExp -> AExp [ditto ctor] .
+  ***op _xor_ : AExp AExp -> AExp [ditto ctor] .
   ***ceq AExp1 xor AExp2 = stdlogicVal('1') if AExp1 =/= AExp2 /\ (AExp1 == stdlogicVal('1') or AExp2 == stdlogicVal('1')) .
   ***eq AExp1 xor AExp2 =  stdlogicVal('0') [owise] .
   eq stdlogicVal('1') xor stdlogicVal('0') = stdlogicVal('1') .
@@ -232,7 +233,7 @@ fmod VHDL-INSTCOLON-MOD is
   eq AExp1 xnor AExp2 = not (AExp1 xor AExp2) .
 
   ***ceq StdLogicVal1 sg-xor AExp2 = stdlogicVal('1') if StdLogicVal1 =/= AExp2 /\ (StdLogicVal1 == stdlogicVal('1') or AExp2 == stdlogicVal('1')) .
-  eq StdLogicVal1 sg-xor StdLogicVal2 =  StdLogicVal1 xor StdLogicVal2 [owise] .
+  ***eq StdLogicVal1 sg-xor StdLogicVal2 =  StdLogicVal1 xor StdLogicVal2 [owise] .
 
   op _ <= _ : SignalName AExp -> SgAssign [ctor] .
 
@@ -451,7 +452,7 @@ mod VHDLMOD is
   vars T Tprev Tnext Tnow : Time .
   var ClockPrev : ClockPrev .
   var TVal : TimeVal .
-  var NzN : NzNat .
+  var PosVal : PosVal .
   var NeSgNameL : NeList{SignalName} .
   var SgNameL : List{SignalName} .
   var TControlSect : TimeControlSection .
@@ -713,11 +714,11 @@ mod VHDLMOD is
   ***eq SignalId1 Op SignalId2 = lookup-sg(SignalId1) Op lookup-sg(SignalId2, SgSTR) .
 
   *** Needed specific declaration for xor due to collisions
-  op _xor_ : SignalName AExp -> AExp [ctor] .
-  op _xor_ : AExp SignalName -> AExp [ctor] .
+  ***op _xor_ : SignalName AExp -> AExp [ctor] .
+  ***op _xor_ : AExp SignalName -> AExp [ctor] .
   ***eq SignalId xor AExp1 = lookup-sg(SignalId, SgSTR) xor AExp1 .
-  eq SignalId xor AExp1 = SignalId sg-xor AExp1 .
-  eq AExp1 xor SignalId = AExp1 sg-xor SignalId .
+  ***eq SignalId xor AExp1 = SignalId sg-xor AExp1 .
+  ***eq AExp1 xor SignalId = AExp1 sg-xor SignalId .
   ***op _xor_ : AExp SignalName -> AExp [ctor] .
   ***eq AExp1 xor SignalId = AExp1 xor lookup-sg(SignalId) .
   op not _ : SignalName -> AExp [ctor] .
@@ -753,7 +754,7 @@ mod VHDLMOD is
   eq verify-gen(natural, NVal) = true .
   eq verify-gen(integer, IntVal) = true .
   eq verify-gen(time, TVal) = true .
-  eq verify-gen(positive, NzN) = true .
+  eq verify-gen(positive, PosVal) = true .
   eq verify-gen(VarType, Val) = false [owise] .
 
 endm

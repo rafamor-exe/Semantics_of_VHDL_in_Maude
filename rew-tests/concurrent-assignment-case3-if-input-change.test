@@ -1,0 +1,22 @@
+rew run(
+  (
+    (entity "example_and" is
+      port (("A" : in  bit ;)  ("B" : inout  "std_logic" ;) ("C" : inout  "std_logic" ;)  ) ;
+    end "example_and" ) ;
+    (architecture "behaviour" of "example_and" is nop ;
+      begin (
+          process "A" begin
+            (
+              (
+                if ("A" = stdlogicVal('1')) then
+                (
+                  ("B" <= (stdlogicVal('0') or "A")) ;
+                  ("C" <= (stdlogicVal('0') or "B")) ;
+                )
+                end if
+              ) ;
+            )
+          end process ;
+      )
+    end "behaviour" );
+  ), {scheduledEvent: time (5 ns), args {sgName "A", value stdlogicVal('1')}}) .

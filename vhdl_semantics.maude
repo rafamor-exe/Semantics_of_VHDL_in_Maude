@@ -5,7 +5,7 @@ fmod VHDL-IODEF-MOD is
   sorts IODef IOType IOValues SgDesc .
 
   ops in out inout : -> IOType [ctor] .
-  ops "std_logic" bit : -> IOValues [ctor] .
+  ops "std_logic" bit integer : -> IOValues [ctor] .
 
   op {_$_} : IOType IOValues -> SgDesc [ctor] .
 
@@ -43,6 +43,9 @@ fmod VHDL-VALUE-MOD is
   op timeVal : Time -> TimeVal [ctor] .
   op natVal : Nat -> NatVal [ctor] .
 
+  ops TRUE FALSE : -> Bool [ctor] .
+  eq TRUE = true .
+  eq FALSE = false .
 
   *** Bit logic
 
@@ -55,18 +58,18 @@ fmod VHDL-VALUE-MOD is
   ops hr min sec ms us ns ps fs : -> TimeUnit [ctor] .
   op __ : Rat TimeUnit -> Time [ctor] .
 
-  *** operations will be done with ns
-  op to-ns : Time -> Time [ctor] .
+  *** operations will be done with fs
+  op to-fs : Time -> Time [ctor] .
 
   var R : Rat .
-  eq to-ns(R fs) = to-ns((R / 1000) ps).
-  eq to-ns(R ps) = to-ns((R / 1000) ns).
-  eq to-ns(R ns) = R ns .
-  eq to-ns(R us) = to-ns((R * 1000) ns).
-  eq to-ns(R ms) = to-ns((R * 1000 ) us) .
-  eq to-ns(R sec) = to-ns((R * 1000) ms) .
-  eq to-ns(R min) = to-ns((R * 60) sec) .
-  eq to-ns(R hr) = to-ns((R * 60) min) .
+  eq to-fs(R fs) = R fs .
+  eq to-fs(R ps) = to-fs((R * 1000) fs) .
+  eq to-fs(R ns) = to-fs((R * 1000) ps) .
+  eq to-fs(R us) = to-fs((R * 1000) ns) .
+  eq to-fs(R ms) = to-fs((R * 1000 ) us) .
+  eq to-fs(R sec) = to-fs((R * 1000) ms) .
+  eq to-fs(R min) = to-fs((R * 60) sec) .
+  eq to-fs(R hr) = to-fs((R * 60) min) .
 
   *** Delta delays
   op delta : Nat -> Delta [ctor] .
@@ -462,6 +465,7 @@ mod VHDLMOD is
   var ElsifSt : ElsifStatement .
   var ElseSt : ElseStatement .
   var EndIf : EndIf .
+  var CompOp : CompOp .
 
   *** Workflow: run(IL, EventSchList) -> Parse -> insitSimArch -> Simulation Loop
   op run : List{InstColon} List{Transaction} -> VHDLCompleteSim [ctor] .
@@ -571,7 +575,7 @@ mod VHDLMOD is
                 fi .
   rl [if-then] : < clk(T) [prev: clk(Tprev)] | nil >< {scheduledInst: time T, inst (if B then IL ElsifSt ElseSt EndIf) ;}  SchList || LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores {repeat: SgChangedMap } {wholeExec: SchListCp}
                 => 
-                if B then
+                if evalB(B, T, SgSTR) then
                   < clk(T) [prev: clk(Tprev)] | nil >< unfold(IL, T) SchList || LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores {repeat: SgChangedMap } {wholeExec: SchListCp}
                 else
                   < clk(T) [prev: clk(Tprev)] | nil >< unfold(schRestIf(ElsifSt, ElseSt), T) SchList || LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores {repeat: SgChangedMap } {wholeExec: SchListCp}
@@ -720,7 +724,7 @@ mod VHDLMOD is
   eq not SignalId = stdlogicVal('1') xor SignalId .
 
   op ___ : SignalName CompOp AExp -> Bool [ctor] .
-  ***eq SignalId Op AExp1 = lookup-sg(SignalId, SgSTR) Op AExp1 .
+  ***eq SignalId CompOp AExp1 = lookup-sg(SgSTR, SignalId) CompOp AExp1 .
   op ___ : AExp CompOp SignalName -> Bool [ctor] .
   ***eq AExp1 Op SignalId = AExp1 Op lookup-sg(SignalId, SgSTR) .
   op ___ : SignalName CompOp SignalName -> Bool [ctor] .
@@ -728,6 +732,13 @@ mod VHDLMOD is
   *** lookup signal from signal store
   eq lookup-sg(SgSTR, SgTimeTuple) = SgSTR[SgTimeTuple] .
   eq lookup(STR, Str) = STR[Str] .
+
+  op evalB : Bool Time Map{SgTimeTuple, Value} -> Bool .
+  eq evalB(true, T, SgSTR) = true .
+  eq evalB(false, T, SgSTR) = false .
+  eq evalB(SignalId CompOp AExp1, T, SgSTR) = SgSTR[{sgName SignalId, time T}] CompOp AExp1 .
+  eq evalB(AExp1 CompOp SignalId, T, SgSTR) = AExp1 CompOp SgSTR[{sgName SignalId, time T}] .
+  eq evalB(SignalId1 CompOp SignalId2, T, SgSTR) = SgSTR[{sgName SignalId1, time T}] CompOp SgSTR[{sgName SignalId2, time T}] .
 
   ***--------------------------
   *** VERIFICATION

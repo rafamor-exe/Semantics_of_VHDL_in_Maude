@@ -9,4 +9,4 @@ rew run(
             ("C" <= (stdlogicVal('0') or "B")) ;
       )
     end "behaviour" );
-  ), nil) .
+  ), empty) .

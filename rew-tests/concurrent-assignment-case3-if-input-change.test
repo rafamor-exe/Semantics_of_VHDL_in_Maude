@@ -1,9 +1,12 @@
 rew run(
   (
     (entity "example_and" is
-      port (("A" : in  bit ;)  ("B" : inout  "std_logic" ;) ("C" : inout  "std_logic" ;)  ) ;
+      port (("A" : in  "std_logic" ;)  ("B" : inout  "std_logic" ;) ("C" : inout  "std_logic" ;)  ) ;
     end "example_and" ) ;
-    (architecture "behaviour" of "example_and" is nop ;
+    (architecture "behaviour" of "example_and" is 
+      (
+        signal "A" : bit := stdlogicVal('0') ;
+      )
       begin (
           process "A" begin
             (

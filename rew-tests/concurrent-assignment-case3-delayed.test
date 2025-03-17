@@ -1,0 +1,29 @@
+rew run(
+  (
+    (entity "example_and" is
+      port (("A" : in  "std_logic" ;)  ("B" : inout  "std_logic" ;) ("C" : inout  "std_logic" ;)  ) ;
+    end "example_and" ) ;
+    (architecture "behaviour" of "example_and" is 
+      (
+        signal "A" : bit := stdlogicVal('0') ;
+      )
+      begin (
+          process nil begin
+            (
+              (
+                if ("A" = stdlogicVal('1')) then
+                (
+                  ("B" <= (stdlogicVal('0') or "A")) ;
+                  ("C" <= (stdlogicVal('0') or "B")) ;
+                )
+                else
+                (
+                  ("A" <= stdlogicVal('1') after (5 ns)) ;
+                )
+                end if
+              ) ;
+            )
+          end process ;
+      )
+    end "behaviour" );
+  ), empty) .

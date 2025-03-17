@@ -166,7 +166,7 @@ fmod VHDL-INSTCOLON-MOD is
   vars SignalId : SignalName .
   var EntityI : EntityInst .
 
-  op _; : Inst -> InstColon [ctor].
+  op _; : Inst -> InstColon [ctor prec 24].
   ***mb (EntityI ;) : EntityInstColon .
   ***op _; : EntityInst -> EntityInstColon [ctor] .
 
@@ -178,7 +178,7 @@ fmod VHDL-INSTCOLON-MOD is
   *** - Generic
   op generic (_) : NeList{GenDef} -> Generic [ctor] .
 
-  op _ <= _ : SignalName AExp -> SgAssign [ctor] .
+  op _ <= _ : SignalName AExp -> SgAssign [ctor prec 23] .
   ***op _ <= _ : SignalName SignalName -> SgAssign [ctor] .
 
   vars Value Value1 Value2 : Value .
@@ -517,8 +517,8 @@ mod VHDLMOD is
 
 
   *** - Signal (declaration)
-  op signal _:_ : NeList{SignalName} IOValues -> SgDecl [ctor] .
-  op signal _:_:=_ : NeList{SignalName} IOValues Value -> SgDecl [ctor] .
+  op signal _:_ : NeList{SignalName} IOValues -> SgDecl [ctor prec 23] .
+  op signal _:_:=_ : NeList{SignalName} IOValues Value -> SgDecl [ctor prec 23] .
 
 
   *** lookup: auxiliar op to lookup values from signal store
@@ -724,13 +724,13 @@ mod VHDLMOD is
                             
     
   
-  rl [lookup-sg] :  < ClkP1 [prev: clk(T)] | (SignalId <= SignalId1 Op AExp1) ; IL >< TControlSect > << SgSTR | VarSTR | ConstSTR >> # DescStores 
-                  => 
-                  < ClkP1 [prev: clk(T)] | (SignalId <= lookup-sg(SgSTR, {sgName SignalId1, time T}) Op AExp1) ; IL >< TControlSect > << SgSTR | VarSTR | ConstSTR >> # DescStores .
-                  
-  rl [lookup-sg-bis] :  < ClkP1 [prev: clk(T)] | (SignalId <= AExp1 Op SignalId1) ; IL >< TControlSect > << SgSTR | VarSTR | ConstSTR >> # DescStores 
-                => 
-                < ClkP1 [prev: clk(T)] | (SignalId <= AExp1 Op lookup-sg(SgSTR, {sgName SignalId1, time T})) ; IL >< TControlSect > << SgSTR | VarSTR | ConstSTR >> # DescStores .
+  ***rl [lookup-sg] :  < ClkP1 [prev: clk(T)] | (SignalId <= SignalId1 Op AExp1) ; IL >< TControlSect > << SgSTR | VarSTR | ConstSTR >> # DescStores 
+  ***                => 
+  ***                < ClkP1 [prev: clk(T)] | (SignalId <= lookup-sg(SgSTR, {sgName SignalId1, time T}) Op AExp1) ; IL >< TControlSect > << SgSTR | VarSTR | ConstSTR >> # DescStores .
+  ***                
+  ***rl [lookup-sg-bis] :  < ClkP1 [prev: clk(T)] | (SignalId <= AExp1 Op SignalId1) ; IL >< TControlSect > << SgSTR | VarSTR | ConstSTR >> # DescStores 
+  ***              => 
+  ***              < ClkP1 [prev: clk(T)] | (SignalId <= AExp1 Op lookup-sg(SgSTR, {sgName SignalId1, time T})) ; IL >< TControlSect > << SgSTR | VarSTR | ConstSTR >> # DescStores .
 
 
   *** nop: test instruction

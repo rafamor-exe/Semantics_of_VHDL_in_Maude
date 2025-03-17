@@ -150,6 +150,7 @@ fmod VHDL-INSTCOLON-MOD is
   subsorts Value < AExp .
   subsorts NumBinOp < IBinOp .
   subsorts NumBinOp < PhysNumBinOp .
+  subsorts CompOp < Op .
 
   ops and or nand nor xnor xor : -> Op [ctor] . 
   ops = /= < > "<=" ">=" : -> CompOp [ctor] .
@@ -244,6 +245,8 @@ fmod VHDL-INSTCOLON-MOD is
   eq stdlogicVal('1') and bitVal('1') = stdlogicVal('1') .
   eq stdlogicVal('1') and stdlogicVal('H') = stdlogicVal('1') .
   eq stdlogicVal('H') and stdlogicVal('1') = stdlogicVal('1') .
+  eq stdlogicVal('1') and stdlogicVal('1') = stdlogicVal('1') .
+  eq stdlogicVal('H') and stdlogicVal('H') = stdlogicVal('1') .
   eq stdlogicVal('0') and AExp1 =  stdlogicVal('0') .
   eq stdlogicVal('L') and AExp1 =  stdlogicVal('0') .
   eq AExp1 and stdlogicVal('0') =  stdlogicVal('0') .
@@ -515,6 +518,7 @@ mod VHDLMOD is
 
   *** - Signal (declaration)
   op signal _:_ : NeList{SignalName} IOValues -> SgDecl [ctor] .
+  op signal _:_:=_ : NeList{SignalName} IOValues Value -> SgDecl [ctor] .
 
 
   *** lookup: auxiliar op to lookup values from signal store
@@ -556,7 +560,7 @@ mod VHDLMOD is
   var IOValues : IOValues .
   var IODefL : List{IODef} .
   var StdLogicVal StdLogicVal1 StdLogicVal2 : StdLogicVal .
-  var AExp1 : AExp .
+  var AExp1 AExp2 : AExp .
   var Error : Error .
   vars Op : Op .
   var VarType : VarType .
@@ -594,8 +598,10 @@ mod VHDLMOD is
   eq initSimArch([ nil -> SchList ] << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > < events: EventSchList >) = < clk(0 ns) [prev: clk(0 ns)] | nil >< SchList || nil || EventSchList > << insertDefault(SgDescSTR, SgSTR) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: insertDefaultRep(SgDescSTR, empty) } {wholeExec: SchList} .
 
   op insertDefault : Map{String, SgDesc} Map{SgTimeTuple, Value} -> Map{SgTimeTuple, Value} .
-  eq insertDefault(SignalId |-> { IOType $ IOValues }, SgSTR) = insert({sgName SignalId, time 0 ns}, default(IOValues),  SgSTR) .
-  eq insertDefault((SignalId |-> { IOType $ IOValues }, SgDescSTR), SgSTR) = insert({sgName SignalId, time 0 ns}, default(IOValues),  insertDefault(SgDescSTR, SgSTR)) .
+  eq insertDefault(empty, SgSTR) = SgSTR .
+  ceq insertDefault(SignalId |-> { IOType $ IOValues }, SgSTR) = insert({sgName SignalId, time 0 ns}, default(IOValues), SgSTR) if SgSTR[{sgName SignalId, time 0 ns}] == undefined .
+  ceq insertDefault((SignalId |-> { IOType $ IOValues }, SgDescSTR), SgSTR) = insert({sgName SignalId, time 0 ns}, default(IOValues),  insertDefault(SgDescSTR, SgSTR)) if SgSTR[{sgName SignalId, time 0 ns}] == undefined .
+  eq insertDefault((SignalId |-> { IOType $ IOValues }, SgDescSTR), SgSTR) = insertDefault(SgDescSTR, SgSTR) [owise] .
 
   op insertDefaultRep : Map{String, SgDesc} Map{String, Bool} -> Map{String, Bool} .
   eq insertDefaultRep(SignalId |-> { IOType $ IOValues }, SgChangedMap) = insert(SignalId, false,  SgChangedMap) .
@@ -614,6 +620,9 @@ mod VHDLMOD is
   eq if BoolVal then IL ElseSt EndIf = if BoolVal then IL null ElseSt EndIf .
   eq if BoolVal then IL ElsifSt EndIf = if BoolVal then IL ElsifSt null EndIf .
   eq elsif BoolVal then IL = elsif BoolVal then IL null .
+
+  *** A signal declaration with no default expression takes the default value for its type (T'LEFT)
+  eq signal SignalId : IOValues = signal SignalId : IOValues := default(IOValues) .
 
   *** TODO: Restrict values of SgSTR to StdLogic with cmb
 
@@ -647,13 +656,13 @@ mod VHDLMOD is
                 [ get-gen(GenDefL) ; exit-block(IL) -> SchList ] << SgSTR | VarSTR | insert(Str, Val, ConstSTR) >> # DescStores 
                 if verify-gen(VarType, Val) .
 
-  rl [parse-signal] : [ (signal NeSgNameL : IOValues) ; IL -> SchList ]
+  rl [parse-signal] : [ (signal NeSgNameL : IOValues := Value) ; IL -> SchList ]
                 => 
-                [ decl-sg(NeSgNameL, IOValues) ; exit-block(IL) -> SchList ] .
+                [ decl-sg(NeSgNameL, IOValues, Value) ; exit-block(IL) -> SchList ] .
   
-  rl [parse-decl-sg] : [ decl-sg(SignalId SgNameL, IOValues) ; exit-block(IL) -> SchList ] ValStores # < SgDescSTR >
+  rl [parse-decl-sg] : [ decl-sg(SignalId SgNameL, IOValues, Value) ; exit-block(IL) -> SchList ] << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR >
                 =>
-                [ decl-sg(SgNameL, IOValues) ; exit-block(IL) -> SchList ] ValStores # < insert(SignalId, { inout $ IOValues}, SgDescSTR) > .
+                [ decl-sg(SgNameL, IOValues, Value) ; exit-block(IL) -> SchList ] << insert({sgName SignalId, time 0 ns}, Value, SgSTR) | VarSTR | ConstSTR >> # < insert(SignalId, { inout $ IOValues}, SgDescSTR) > .
 
   rl [parse-architecture] : [ (architecture Str of Str2 is IL1 begin IL2 end Str) ; IL -> SchList ] StoresVar
                           => 
@@ -669,17 +678,9 @@ mod VHDLMOD is
                             if verify-sg(out inout, SignalId, SgDescSTR) .
 
   *** assign-sg-val : assign a value to a signal after solving all AExp and signal lookups
-  rl [assign-sg-val-sch] : < clk(T) [prev: clk(Tprev)] | nil >< {scheduledInst: time T, inst (SignalId <= Value) ;}  SchList || LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp}
+  rl [assign-sg-val-sch] : < clk(T) [prev: clk(Tprev)] | nil >< {scheduledInst: time T, inst (SignalId <= AExp1) ;}  SchList || LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp}
                       => 
-                      < clk(T) [prev: clk(Tprev)] | nil >< SchList || LstList || EventSchList > << insert({sgName SignalId, time T + delta}, correctVal(Value, SignalId, lookup-sg(SgSTR, {sgName SignalId, time T + delta}), lookup-sg(SgSTR, {sgName SignalId, time T})), SgSTR) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: insert(SignalId,  (sg-val-changed(correctVal(Value, SignalId, lookup-sg(SgSTR, {sgName SignalId, time T + delta}), lookup-sg(SgSTR, {sgName SignalId, time T})), SignalId, T, SgSTR)), SgChangedMap) } {wholeExec: SchListCp} .
-
-  rl [resolve-sg] : < clk(T) [prev: clk(Tprev)] | nil >< {scheduledInst: time T, inst (SignalId <= SignalId1 Op AExp1) ;}  SchList || LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores {repeat: SgChangedMap } {wholeExec: SchListCp}
-                    => 
-                  < clk(T) [prev: clk(Tprev)] | nil >< SchList || LstList || EventSchList > << insert({sgName SignalId, time T + delta}, correctVal(lookup-sg(SgSTR, {sgName SignalId1, time T}) Op AExp1, SignalId, lookup-sg(SgSTR, {sgName SignalId, time T + delta}), lookup-sg(SgSTR, {sgName SignalId, time T})), SgSTR) | VarSTR | ConstSTR >> # DescStores {repeat: insert(SignalId,  (sg-val-changed(correctVal(lookup-sg(SgSTR, {sgName SignalId1, time T}) Op AExp1, SignalId, lookup-sg(SgSTR, {sgName SignalId, time T + delta}), lookup-sg(SgSTR, {sgName SignalId, time T})), SignalId, T, SgSTR)), SgChangedMap) } {wholeExec: SchListCp} .
-  
-  rl [resolve-sg-bis] : < clk(T) [prev: clk(Tprev)] | nil >< {scheduledInst: time T, inst (SignalId <= AExp1 Op SignalId1) ;}  SchList || LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores {repeat: SgChangedMap } {wholeExec: SchListCp}
-                    => 
-                  < clk(T) [prev: clk(Tprev)] | nil >< SchList || LstList || EventSchList > << insert({sgName SignalId, time T + delta}, correctVal(AExp1 Op lookup-sg(SgSTR, {sgName SignalId1, time T}), SignalId, lookup-sg(SgSTR, {sgName SignalId, time T + delta}), lookup-sg(SgSTR, {sgName SignalId, time T})), SgSTR) | VarSTR | ConstSTR >> # DescStores {repeat: insert(SignalId,  (sg-val-changed(correctVal(AExp1 Op lookup-sg(SgSTR, {sgName SignalId1, time T}), SignalId, lookup-sg(SgSTR, {sgName SignalId, time T + delta}), lookup-sg(SgSTR, {sgName SignalId, time T})), SignalId , T, SgSTR)), SgChangedMap) } {wholeExec: SchListCp} .
+                      < clk(T) [prev: clk(Tprev)] | nil >< SchList || LstList || EventSchList > << insert({sgName SignalId, time T + delta}, correctVal(evalA(AExp1, T, SgSTR), SignalId, lookup-sg(SgSTR, {sgName SignalId, time T + delta})), SgSTR) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: insert(SignalId,  (sg-val-changed(correctVal(evalA(AExp1, T, SgSTR), SignalId, lookup-sg(SgSTR, {sgName SignalId, time T + delta})), SignalId, T, SgSTR)), SgChangedMap) } {wholeExec: SchListCp} .
 
   rl [process] : < clk(T) ClockPrev | nil >< {scheduledInst: time T, inst (process SgNameL begin IL2 end process) ;}  SchList || LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores 
                 => 
@@ -711,7 +712,11 @@ mod VHDLMOD is
                             if anySgChange(SgChangedMap) == true and T =/= Tnext .
   crl [end-sim-cycle-nextEv] : < clk(T) [prev: clk(Tprev)] | nil >< nil || LstList || {scheduledEvent: time Tnext, args {sgName SignalId, value Value} } EventSchList > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp}
                             => 
-                            < clk(Tnext) [prev: clk(T)] | nil >< schOnTime(SchListCp, Tnext) || nil || EventSchList > << fill-blanks-next-ev(SignalId, get-sgL(SgDescSTR), insert({sgName SignalId, time Tnext}, Value, fill-blanks(get-sgL(SgDescSTR), SgSTR, T, Tprev)), Tnext, T) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: insert(SignalId, true, SgChangedMap) } {wholeExec: SchListCp}
+                            if EventSchList == nil then
+                              < clk(Tnext) [prev: clk(T)] | nil >< schOnTime(SchListCp, Tnext) || nil || EventSchList > << fill-blanks-next-ev(SignalId, get-sgL(SgDescSTR), insert({sgName SignalId, time Tnext}, Value, fill-blanks(get-sgL(SgDescSTR), SgSTR, T, Tprev)), Tnext, T) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: insert(SignalId, true, SgChangedMap) } {wholeExec: SchListCp}
+                            else
+                              < clk(T) [prev: clk(Tprev)] | nil >< nil || nil || EventSchList > << insert({sgName SignalId, time Tnext}, Value, fill-blanks(get-sgL(SgDescSTR), SgSTR, T, Tprev)) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: insert(SignalId, true, SgChangedMap) } {wholeExec: SchListCp}
+                            fi
                             if anySgChange(SgChangedMap) == false and T =/= Tnext .
   ***rl [end-sim] : < clk(T) [prev: clk(Tprev)] | nil >< nil || LstList || EventSchList > << SgSTR | VarSTR | ConstSTR >> # DescStores {repeat: B } {wholeExec: SchListCp}
   ***              => 
@@ -762,8 +767,8 @@ mod VHDLMOD is
   op get-gen : List{GenDef} -> Inst [ctor] .
   eq get-gen(nil) = nop .
 
-  op decl-sg : List{SignalName} IOValues -> Inst [ctor] .
-  eq decl-sg(nil, IOValues) = nop .
+  op decl-sg : List{SignalName} IOValues Value -> Inst [ctor] .
+  eq decl-sg(nil, IOValues, Value) = nop .
 
   op unfold : List{InstColon} Time -> List{ScheduledInst} [ctor] .
   eq unfold(nil, T) = nil .
@@ -784,13 +789,12 @@ mod VHDLMOD is
   eq schOnTime(nil, Tnow) = nil .
   eq schOnTime({scheduledInst: time T, inst I1 } SchList, Tnow) =  {scheduledInst: time Tnow, inst I1 } schOnTime(SchList, Tnow) .
 
-  *** TODO: stdlogicval2 not needed?
-  op correctVal : Value SignalName Value Value -> Value .
-  eq correctVal(Value, SignalId, undefined, undefined) = Value .
-  eq correctVal(Value, SignalId, undefined, Value2) = Value .
-  eq correctVal(Value, SignalId, Value, Value2) = Value .
+  *** Resolve multiple assignments: first Value is newValue, second is already assigned value
+  op correctVal : Value SignalName Value -> Value .
+  eq correctVal(Value, SignalId, undefined) = Value .
+  eq correctVal(Value, SignalId, Value) = Value .
   ***if lookup-sg(SgSTR, {sgName SignalId, time T + delta}) == undefined or lookup-sg(SgSTR, {sgName SignalId, time T}) == stdlogicVal('U') .
-  eq correctVal(Value, SignalId, Value1, Value2) = resolve(Value, Value1) [owise] .
+  eq correctVal(Value, SignalId, Value1) = resolve(Value, Value1) [owise] .
 
   op anySgChange : Map{String, Bool} -> Bool .
   eq anySgChange(empty) = false .
@@ -855,6 +859,13 @@ mod VHDLMOD is
   eq evalB(SignalId CompOp AExp1, T, SgSTR) = SgSTR[{sgName SignalId, time T}] CompOp AExp1 .
   eq evalB(AExp1 CompOp SignalId, T, SgSTR) = AExp1 CompOp SgSTR[{sgName SignalId, time T}] .
   eq evalB(SignalId1 CompOp SignalId2, T, SgSTR) = SgSTR[{sgName SignalId1, time T}] CompOp SgSTR[{sgName SignalId2, time T}] .
+
+  op evalA : AExp Time Map{SgTimeTuple, Value} -> Value .
+  eq evalA(Value, T, SgSTR) = Value .
+  eq evalA(SignalId Op AExp1, T, SgSTR) = SgSTR[{sgName SignalId, time T}] Op evalA(AExp1, T, SgSTR) .
+  eq evalA(AExp1 Op SignalId, T, SgSTR) = evalA(AExp1, T, SgSTR) Op SgSTR[{sgName SignalId, time T}] .
+  eq evalA(SignalId1 Op SignalId2, T, SgSTR) = SgSTR[{sgName SignalId1, time T}] Op SgSTR[{sgName SignalId2, time T}] .
+  eq evalA(AExp1 Op AExp2, T, SgSTR) = evalA(AExp1, T, SgSTR) Op evalA(AExp2, T, SgSTR) .
 
   ***--------------------------
   *** VERIFICATION

@@ -1,0 +1,14 @@
+rew run(
+  (
+    (entity "adder" is
+      port (("ci" : in  bit ;)  ("s" : out  bit ;) ("co" : out  bit ;)  ) ;
+    end "adder" ) ;
+    (architecture "rtl" of "adder" is nop ;
+      ((signal "i0" : bit := bitVal('1') );
+      (signal "i1" : bit := bitVal('1') );)
+      begin (
+          ("s" <= (("i0" xor "i1") xor "ci")) ;
+          ("co" <= ((("i0" and "i1") or ("i0" and "ci")) or ("i1" and "ci"))) ;
+      )
+    end "rtl" );
+  ), nil) .

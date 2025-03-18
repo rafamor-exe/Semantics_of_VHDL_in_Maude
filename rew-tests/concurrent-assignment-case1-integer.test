@@ -1,0 +1,15 @@
+rew run(
+  (
+    (entity "plus_5" is
+      port (("B" : inout  integer ;) ("C" : inout  integer ;)  ) ;
+    end "plus_5" ) ;
+    (architecture "behaviour" of "plus_5" is 
+      (
+        signal "A" : integer := intVal(10) ;
+      )
+      begin (
+            ("B" <= ("A" + intVal(5))) ;
+            ("C" <= ("B" + intVal(5))) ;
+      )
+    end "behaviour" );
+  ), empty) .

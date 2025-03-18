@@ -2,14 +2,16 @@ fmod VHDL-IODEF-MOD is
 
   protecting STRING .
 
-  sorts IODef IOType IOValues SgDesc .
+  sorts IODef IOType Type SgDesc IntType .
+  subsorts IntType < Type .
 
   ops in out inout : -> IOType [ctor] .
-  ops "std_logic" bit integer time : -> IOValues [ctor] .
+  ops 'std_logic bit time : -> Type [ctor] .
+  ops integer natural positive : -> IntType [ctor] .
 
-  op {_$_} : IOType IOValues -> SgDesc [ctor] .
+  op {_$_} : IOType Type -> SgDesc [ctor] .
 
-  op _:__; : String IOType IOValues -> IODef [ctor] .
+  op _:__; : String IOType Type -> IODef [ctor] .
 
 endfm
 
@@ -28,7 +30,7 @@ endv
 fmod VHDL-VALUE-MOD is
 
   protecting RAT .
-  protecting STRING .
+  ***protecting STRING .
   protecting VHDL-IODEF-MOD .
 
   sorts StdLogic Value IntVal StdLogicVal TimeVal NatVal PosVal BoolVal BitVal NumVal .
@@ -99,10 +101,6 @@ fmod VHDL-VALUE-MOD is
   eq delta(N1) + delta(N2) = delta(N1 + N2) .
   eq (T + TDelta1) + TDelta2 = T + (TDelta1 + TDelta2) .
 
-  op default : IOValues -> Value .
-  eq default("std_logic") = stdlogicVal('U') .
-  eq default(bit) = bitVal('0') .
-
   ***var StdLogic : StdLogic .
   ***mb 'H' : To1 .
   ***mb '1' : To1 . 
@@ -115,16 +113,16 @@ view Value from TRIV to VHDL-VALUE-MOD is
   sort Elt to Value .
 endv
 
-
 fmod VHDL-GENERIC-MOD is
 
-  protecting STRING .
+  ***protecting STRING .
+  protecting VHDL-IODEF-MOD .
   protecting VHDL-VALUE-MOD .
 
-  sorts GenDef VarType .
+  sorts GenDef .
 
-  op _: _ := _; : String VarType Value -> GenDef [ctor] .
-  ops natural integer time positive : -> VarType [ctor] .
+  op _: _ := _; : String Type Value -> GenDef [ctor] .
+  ***ops natural integer time positive : -> VarType [ctor] .
 
 endfm
 
@@ -181,7 +179,6 @@ fmod VHDL-INSTCOLON-MOD is
 
   op _ <= _ after _ : SignalName AExp Time -> SgAssign [ctor prec 23] .
   op _ <= _ : SignalName AExp -> SgAssign [ctor prec 23] .
-  ***op _ <= _ : SignalName SignalName -> SgAssign [ctor] .
 
   vars Value Value1 Value2 : Value .
   vars StdLogicVal StdLogicVal1 StdLogicVal2 : StdLogicVal .
@@ -191,6 +188,7 @@ fmod VHDL-INSTCOLON-MOD is
   vars Int1 Int2 : Int .
   vars B1 B2 : Bool .
   vars Bit1 Bit2 : Bit .
+  vars StdLogic StdLogic1 StdLogic2 : StdLogic .
   var ZWLH : StdLogicAux .
   var To0 : To0 .
   var To1 : To1 .
@@ -199,8 +197,24 @@ fmod VHDL-INSTCOLON-MOD is
   vars R R1 R2 : Rat .
   vars TUnit1 TUnit2 : TimeUnit . 
 
+  ***op _and_ : AExp AExp -> AExp [ctor assoc] .
+  ***op _or_ : AExp AExp -> AExp [ctor assoc] .
+  ***op _nand_ : AExp AExp -> AExp [ctor assoc] .
+  ***op _nor_ : AExp AExp -> AExp [ctor assoc] .
+  ***op _xnor_ : AExp AExp -> AExp [ctor assoc] .
+  ***op _xor_ : AExp AExp -> AExp [ctor assoc] .
   op ___ : AExp Op AExp -> AExp [ctor] .
   op ___ : AExp CompOp AExp -> BoolVal [ctor] .
+
+  op ___ : SignalName Op AExp -> AExp [ctor] .
+  op ___ : AExp Op SignalName -> AExp [ctor] .
+  op ___ : SignalName Op SignalName -> AExp [ctor] .
+  op not _ : SignalName -> AExp [ctor] .
+  op abs : SignalName -> AExp [ctor] .
+
+  op ___ : SignalName CompOp AExp -> BoolVal [ctor] .
+  op ___ : AExp CompOp SignalName -> BoolVal [ctor] .
+  op ___ : SignalName CompOp SignalName -> BoolVal [ctor] .
 
   op not_ : AExp -> AExp [ctor] .
   eq not bitVal('0') = bitVal('1') .
@@ -215,15 +229,13 @@ fmod VHDL-INSTCOLON-MOD is
   eq not boolVal(B1) = boolVal(not B1) .
 
   ***op _or_ : StdLogic AExp -> AExp [ctor] .
-  eq bitVal('1') or bitVal(Bit2) = bitVal('1') .
-  eq bitVal(Bit1) or bitVal('1') = bitVal('1') .
+  eq bitVal('1') or BitVal2 = bitVal('1') .
+  eq BitVal1 or bitVal('1') = bitVal('1') .
   eq bitVal('0') or bitVal('0') = bitVal('0') .
-  eq bitVal('0') or stdlogicVal('0') = stdlogicVal('0') .
-  eq stdlogicVal('0') or bitVal('0') = stdlogicVal('0') .
-  eq stdlogicVal('1') or AExp1 = stdlogicVal('1') .
-  eq stdlogicVal('H') or AExp1 = stdlogicVal('1') .
-  eq AExp1 or stdlogicVal('1') = stdlogicVal('1') .
-  eq AExp1 or stdlogicVal('H') = stdlogicVal('1') .
+  eq stdlogicVal('1') or StdLogicVal2 = stdlogicVal('1') .
+  eq stdlogicVal('H') or StdLogicVal2 = stdlogicVal('1') .
+  eq StdLogicVal1 or stdlogicVal('1') = stdlogicVal('1') .
+  eq StdLogicVal1 or stdlogicVal('H') = stdlogicVal('1') .
   eq stdlogicVal('0') or stdlogicVal('L') = stdlogicVal('0') .
   eq stdlogicVal('L') or stdlogicVal('0') = stdlogicVal('0') .
   eq stdlogicVal('0') or stdlogicVal('0') = stdlogicVal('0') .
@@ -240,19 +252,17 @@ fmod VHDL-INSTCOLON-MOD is
   eq orU(StdLogicVal) = stdlogicVal('U') [owise] .
 
   ***op _and_ : StdLogic AExp -> AExp [ctor] .
-  eq bitVal('0') and AExp1 = bitVal('0') .
-  eq AExp1 and bitVal('0') = bitVal('0') .
+  eq bitVal('0') and BitVal2 = bitVal('0') .
+  eq BitVal1 and bitVal('0') = bitVal('0') .
   eq bitVal('1') and bitVal('1') = bitVal('1') .
-  eq bitVal('1') and stdlogicVal('1') = stdlogicVal('1') .
-  eq stdlogicVal('1') and bitVal('1') = stdlogicVal('1') .
   eq stdlogicVal('1') and stdlogicVal('H') = stdlogicVal('1') .
   eq stdlogicVal('H') and stdlogicVal('1') = stdlogicVal('1') .
   eq stdlogicVal('1') and stdlogicVal('1') = stdlogicVal('1') .
   eq stdlogicVal('H') and stdlogicVal('H') = stdlogicVal('1') .
-  eq stdlogicVal('0') and AExp1 =  stdlogicVal('0') .
-  eq stdlogicVal('L') and AExp1 =  stdlogicVal('0') .
-  eq AExp1 and stdlogicVal('0') =  stdlogicVal('0') .
-  eq AExp1 and stdlogicVal('L') =  stdlogicVal('0') .
+  eq stdlogicVal('0') and StdLogicVal2 =  stdlogicVal('0') .
+  eq stdlogicVal('L') and StdLogicVal2 =  stdlogicVal('0') .
+  eq StdLogicVal1 and stdlogicVal('0') =  stdlogicVal('0') .
+  eq StdLogicVal1 and stdlogicVal('L') =  stdlogicVal('0') .
   eq stdlogicVal('U') and StdLogicVal2 = andU(StdLogicVal2) . 
   eq StdLogicVal1 and stdlogicVal('U') = andU(StdLogicVal1) .
   eq StdLogicVal1 and StdLogicVal2 = stdlogicVal('X') [owise] .
@@ -269,11 +279,6 @@ fmod VHDL-INSTCOLON-MOD is
   ***eq AExp1 xor AExp2 =  stdlogicVal('0') [owise] .
   eq bitVal(Bit1) xor bitVal(Bit1) = bitVal('0') .
   eq bitVal(Bit1) xor bitVal(Bit2) = bitVal('1') [owise] .
-  ***TODO: Check if this relation should be allowed
-  eq stdlogicVal(Bit1) xor bitVal(Bit1) = stdlogicVal('0') .
-  eq stdlogicVal(Bit1) xor bitVal(Bit2) = stdlogicVal('1') [owise] .
-  eq bitVal(Bit1) xor stdlogicVal(Bit1) = stdlogicVal('0') .
-  eq bitVal(Bit1) xor stdlogicVal(Bit2) = stdlogicVal('1') [owise] .
 
   eq stdlogicVal('1') xor stdlogicVal('0') = stdlogicVal('1') .
   eq stdlogicVal('0') xor stdlogicVal('1') = stdlogicVal('1') .
@@ -287,8 +292,8 @@ fmod VHDL-INSTCOLON-MOD is
   eq stdlogicVal('0') xor stdlogicVal('L') = stdlogicVal('0') .
   eq stdlogicVal('L') xor stdlogicVal('0') = stdlogicVal('0') .
   eq stdlogicVal('L') xor stdlogicVal('L') = stdlogicVal('0') .
-  eq stdlogicVal('U') xor AExp1 = stdlogicVal('U') . 
-  eq AExp1 xor stdlogicVal('U') = stdlogicVal('U') .
+  eq stdlogicVal('U') xor StdLogicVal2 = stdlogicVal('U') . 
+  eq StdLogicVal1 xor stdlogicVal('U') = stdlogicVal('U') .
   eq StdLogicVal1 xor StdLogicVal2 = stdlogicVal('X') [owise] .
   ***Bool op definition
   eq boolVal(B1) xor boolVal(B2) = boolVal(B1 xor B2) .
@@ -350,8 +355,12 @@ fmod VHDL-INSTCOLON-MOD is
   eq (intVal(Int1) ">=" intVal(Int2)) = boolVal(Int1 >= Int2) .
 
 
-  op __ : NumUnOp IntVal -> IntVal [ctor] .
-  op ___ : IntVal IBinOp IntVal -> IntVal [ctor] .
+  op __ : NumUnOp IntVal -> AExp [ctor] .
+  op ___ : IntVal IBinOp IntVal -> AExp [ctor] .
+  op __ : NumUnOp SignalName -> AExp [ctor] .
+  op ___ : IntVal IBinOp SignalName -> AExp [ctor] .
+  op ___ : SignalName IBinOp IntVal -> AExp [ctor] .
+  op ___ : SignalName IBinOp SignalName -> AExp [ctor] .
 
   ***eq + intVal(Int1) = intVal(+ Int1) .  
   eq - intVal(Int1) = intVal(- Int1) .
@@ -392,6 +401,37 @@ view SignalName from TRIV to VHDL-INSTCOLON-MOD is
   sort Elt to SignalName .
 endv
 
+fmod VHDL-ATTRIBUTES-MOD is
+
+  protecting VHDL-INSTCOLON-MOD .
+  protecting VHDL-VALUE-MOD .
+
+  sorts Attr TypeAttr ObjAttr TOAttr .
+  subsorts TOAttr < TypeAttr ObjAttr .
+
+  op _ ' _ : Type TypeAttr -> Value .
+  op _ ' _ : SignalName ObjAttr -> Value .
+  ***op _ ' _ : VarName ObjAttr -> Value .
+
+  ops ASCENDING LEFT RIGHT HIGH LOW : -> TypeAttr [ctor] .
+
+  var T : Type .
+  var IntT : Type .
+
+  eq IntT ' ASCENDING = boolVal(true) .
+  eq 'std_logic ' ASCENDING = boolVal(true) .
+  eq bit ' ASCENDING = boolVal(true) .
+
+  eq integer ' LOW = intVal(-2147483648) .
+  eq natural ' LOW = natVal(0) .
+  eq bit ' LOW = bitVal('0') .
+  eq 'std_logic ' LOW = stdlogicVal('U') .
+
+  ceq T ' LEFT = T ' LOW if (T ' ASCENDING) == boolVal(true) .
+  eq T ' LEFT = T ' HIGH [owise] .
+  
+endfm
+
 fmod VHDL-SCHEDULE-MOD is
 
   protecting VHDL-VALUE-MOD .
@@ -430,6 +470,7 @@ mod VHDLMOD is
   protecting NAT .
   ***protecting INT .
   ***protecting STRING .
+  protecting VHDL-ATTRIBUTES-MOD .
   protecting VHDL-INSTCOLON-MOD .
   protecting VHDL-VALUE-MOD .
   protecting VHDL-GENERIC-MOD .
@@ -537,8 +578,8 @@ mod VHDLMOD is
   ***op for _ : TimeVal -> TimeoutClause [ctor] .
 
   *** - Signal (declaration)
-  op signal _:_ : NeList{SignalName} IOValues -> SgDecl [ctor prec 23] .
-  op signal _:_:=_ : NeList{SignalName} IOValues Value -> SgDecl [ctor prec 23] .
+  op signal _:_ : NeList{SignalName} Type -> SgDecl [ctor prec 23] .
+  op signal _:_:=_ : NeList{SignalName} Type Value -> SgDecl [ctor prec 23] .
 
 
   *** lookup: auxiliar op to lookup values from signal store
@@ -576,13 +617,13 @@ mod VHDLMOD is
   var IODef : IODef .
   var IOType : IOType .
   var IOTypeL : List{IOType} .
-  var IOValues : IOValues .
+  var Type : Type .
   var IODefL : List{IODef} .
   var StdLogicVal StdLogicVal1 StdLogicVal2 : StdLogicVal .
   var AExp1 AExp2 : AExp .
   var Error : Error .
   vars Op : Op .
-  var VarType : VarType .
+  ***var VarType : VarType .
   var NeGenDefL : NeList{GenDef} .
   var GenDefL : List{GenDef} .
   var EntityIL : List{EntityInstColon} .
@@ -608,6 +649,8 @@ mod VHDLMOD is
   var SensitivityCl : SensitivityClause .
   var ConditionCl : ConditionClause .
   var TimeoutCl : TimeoutClause .
+  var NumUnOp : NumUnOp .
+  var IBinOp : IBinOp .
 
   *** Workflow: run(IL, EventSchSet) -> Parse -> insitSimArch -> Simulation Loop
   op run : List{InstColon} Set{Transaction} -> VHDLCompleteSim [ctor] .
@@ -621,13 +664,13 @@ mod VHDLMOD is
 
   op insertDefault : Map{String, SgDesc} Map{SgTimeTuple, Value} -> Map{SgTimeTuple, Value} .
   eq insertDefault(empty, SgSTR) = SgSTR .
-  ceq insertDefault(SignalId |-> { IOType $ IOValues }, SgSTR) = insert({sgName SignalId, time 0 ns}, default(IOValues), SgSTR) if SgSTR[{sgName SignalId, time 0 ns}] == undefined .
-  ceq insertDefault((SignalId |-> { IOType $ IOValues }, SgDescSTR), SgSTR) = insert({sgName SignalId, time 0 ns}, default(IOValues),  insertDefault(SgDescSTR, SgSTR)) if SgSTR[{sgName SignalId, time 0 ns}] == undefined .
-  eq insertDefault((SignalId |-> { IOType $ IOValues }, SgDescSTR), SgSTR) = insertDefault(SgDescSTR, SgSTR) [owise] .
+  ceq insertDefault(SignalId |-> { IOType $ Type }, SgSTR) = insert({sgName SignalId, time 0 ns}, (Type ' LEFT), SgSTR) if SgSTR[{sgName SignalId, time 0 ns}] == undefined .
+  ceq insertDefault((SignalId |-> { IOType $ Type }, SgDescSTR), SgSTR) = insert({sgName SignalId, time 0 ns}, (Type ' LEFT),  insertDefault(SgDescSTR, SgSTR)) if SgSTR[{sgName SignalId, time 0 ns}] == undefined .
+  eq insertDefault((SignalId |-> { IOType $ Type }, SgDescSTR), SgSTR) = insertDefault(SgDescSTR, SgSTR) [owise] .
 
   op insertDefaultRep : Map{String, SgDesc} Map{String, Bool} -> Map{String, Bool} .
-  eq insertDefaultRep(SignalId |-> { IOType $ IOValues }, SgChangedMap) = insert(SignalId, false,  SgChangedMap) .
-  eq insertDefaultRep((SignalId |-> { IOType $ IOValues }, SgDescSTR), SgChangedMap) = insert(SignalId, false,  insertDefaultRep(SgDescSTR, SgChangedMap)) .
+  eq insertDefaultRep(SignalId |-> { IOType $ Type }, SgChangedMap) = insert(SignalId, false,  SgChangedMap) .
+  eq insertDefaultRep((SignalId |-> { IOType $ Type }, SgDescSTR), SgChangedMap) = insert(SignalId, false,  insertDefaultRep(SgDescSTR, SgChangedMap)) .
 
   ***op initSim : List{InstColon} Set{Transaction} -> VHDLSim [ctor] .
   ***eq initSim(IL, EventSchSet) = < clk(0 ns) [prev: clk(0 ns)] | IL >< nil | nil | EventSchSet > << empty | empty | empty >> # < empty > .
@@ -648,7 +691,7 @@ mod VHDLMOD is
   ***eq wait SensitivityCl ConditionCl = wait SensitivityCl ConditionCl null .
 
   *** A signal declaration with no default expression takes the default value for its type (T'LEFT)
-  eq signal SignalId : IOValues = signal SignalId : IOValues := default(IOValues) .
+  eq signal SignalId : Type = signal SignalId : Type := (Type ' LEFT) .
 
   *** A signal assignment assumes 0 ns delay if after clause is not present
   eq SignalId <= AExp1 = SignalId <= AExp1 after (0 ns) .
@@ -673,25 +716,25 @@ mod VHDLMOD is
   rl [parse-port] : [ (port(NeIODefL)) ; IL -> SchList ]
                     => 
                     [ get-port-sg(NeIODefL) ; exit-block(IL) -> SchList ] .
-  rl [parse-get-port-sg] : [ (get-port-sg((Str : IOType IOValues ;) IODefL)) ; exit-block(IL) -> SchList ] ValStores # < SgDescSTR > 
+  rl [parse-get-port-sg] : [ (get-port-sg((Str : IOType Type ;) IODefL)) ; exit-block(IL) -> SchList ] ValStores # < SgDescSTR > 
                      => 
-                     [ get-port-sg(IODefL) ; exit-block(IL) -> SchList ] ValStores # < insert(Str, { IOType $ IOValues }, SgDescSTR) > .
+                     [ get-port-sg(IODefL) ; exit-block(IL) -> SchList ] ValStores # < insert(Str, { IOType $ Type }, SgDescSTR) > .
 
   rl [parse-generic] : [ (generic(NeGenDefL)) ; IL -> SchList ]
                 => 
                 [ get-gen(NeGenDefL) ; exit-block(IL) -> SchList ] .
-  crl [parse-get-gen] : [ (get-gen((Str : VarType := Val ;) GenDefL)) ; exit-block(IL) -> SchList ] << SgSTR | VarSTR | ConstSTR >> # DescStores
+  crl [parse-get-gen] : [ (get-gen((Str : Type := Val ;) GenDefL)) ; exit-block(IL) -> SchList ] << SgSTR | VarSTR | ConstSTR >> # DescStores
                 =>
                 [ get-gen(GenDefL) ; exit-block(IL) -> SchList ] << SgSTR | VarSTR | insert(Str, Val, ConstSTR) >> # DescStores 
-                if verify-gen(VarType, Val) .
+                if verify-gen(Type, Val) .
 
-  rl [parse-signal] : [ (signal NeSgNameL : IOValues := Value) ; IL -> SchList ]
+  rl [parse-signal] : [ (signal NeSgNameL : Type := Value) ; IL -> SchList ]
                 => 
-                [ decl-sg(NeSgNameL, IOValues, Value) ; exit-block(IL) -> SchList ] .
+                [ decl-sg(NeSgNameL, Type, Value) ; exit-block(IL) -> SchList ] .
   
-  rl [parse-decl-sg] : [ decl-sg(SignalId SgNameL, IOValues, Value) ; exit-block(IL) -> SchList ] << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR >
+  rl [parse-decl-sg] : [ decl-sg(SignalId SgNameL, Type, Value) ; exit-block(IL) -> SchList ] << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR >
                 =>
-                [ decl-sg(SgNameL, IOValues, Value) ; exit-block(IL) -> SchList ] << insert({sgName SignalId, time 0 ns}, Value, SgSTR) | VarSTR | ConstSTR >> # < insert(SignalId, { inout $ IOValues}, SgDescSTR) > .
+                [ decl-sg(SgNameL, Type, Value) ; exit-block(IL) -> SchList ] << insert({sgName SignalId, time 0 ns}, Value, SgSTR) | VarSTR | ConstSTR >> # < insert(SignalId, { inout $ Type}, SgDescSTR) > .
 
   rl [parse-architecture] : [ (architecture Str of Str2 is IL1 begin IL2 end Str) ; IL -> SchList ] StoresVar
                           => 
@@ -794,13 +837,13 @@ mod VHDLMOD is
   eq get-port-sg(nil) = nop .
 
   op get-sgtype : SgDesc -> IOType .
-  eq get-sgtype({IOType $ IOValues}) = IOType .
+  eq get-sgtype({IOType $ Type}) = IOType .
 
   op get-gen : List{GenDef} -> Inst [ctor] .
   eq get-gen(nil) = nop .
 
-  op decl-sg : List{SignalName} IOValues Value -> Inst [ctor] .
-  eq decl-sg(nil, IOValues, Value) = nop .
+  op decl-sg : List{SignalName} Type Value -> Inst [ctor] .
+  eq decl-sg(nil, Type, Value) = nop .
 
   op unfold : List{InstColon} Time -> List{ScheduledInst} [ctor] .
   eq unfold(nil, T) = nil .
@@ -856,30 +899,6 @@ mod VHDLMOD is
 
 
   *** ------------
-
-  op ___ : SignalName Op AExp -> AExp [ctor] .
-  ***eq SignalId Op AExp1 = lookup-sg(SignalId, SgSTR) Op AExp1 .
-  op ___ : AExp Op SignalName -> AExp [ctor] .
-  ***eq AExp1 Op SignalId = AExp1 Op lookup-sg(SignalId, SgSTR) .
-  op ___ : SignalName Op SignalName -> AExp [ctor] .
-  ***eq SignalId1 Op SignalId2 = lookup-sg(SignalId1) Op lookup-sg(SignalId2, SgSTR) .
-
-  *** Needed specific declaration for xor due to collisions
-  ***op _xor_ : SignalName AExp -> AExp [ctor] .
-  ***op _xor_ : AExp SignalName -> AExp [ctor] .
-  ***eq SignalId xor AExp1 = lookup-sg(SignalId, SgSTR) xor AExp1 .
-  ***eq SignalId xor AExp1 = SignalId sg-xor AExp1 .
-  ***eq AExp1 xor SignalId = AExp1 sg-xor SignalId .
-  ***op _xor_ : AExp SignalName -> AExp [ctor] .
-  ***eq AExp1 xor SignalId = AExp1 xor lookup-sg(SignalId) .
-  op not _ : SignalName -> AExp [ctor] .
-  eq not SignalId = stdlogicVal('1') xor SignalId .
-
-  op ___ : SignalName CompOp AExp -> BoolVal [ctor] .
-  ***eq SignalId CompOp AExp1 = lookup-sg(SgSTR, SignalId) CompOp AExp1 .
-  op ___ : AExp CompOp SignalName -> BoolVal [ctor] .
-  ***eq AExp1 Op SignalId = AExp1 Op lookup-sg(SignalId, SgSTR) .
-  op ___ : SignalName CompOp SignalName -> BoolVal [ctor] .
   
   *** lookup signal from signal store
   eq lookup-sg(SgSTR, SgTimeTuple) = SgSTR[SgTimeTuple] .
@@ -892,12 +911,22 @@ mod VHDLMOD is
   eq evalB(AExp1 CompOp SignalId, T, SgSTR) = AExp1 CompOp SgSTR[{sgName SignalId, time T}] .
   eq evalB(SignalId1 CompOp SignalId2, T, SgSTR) = SgSTR[{sgName SignalId1, time T}] CompOp SgSTR[{sgName SignalId2, time T}] .
 
+  op __ : NumUnOp SignalName -> IntVal [ctor] .
+  op ___ : SignalName IBinOp SignalName -> IntVal [ctor] .
+
   op evalA : AExp Time Map{SgTimeTuple, Value} -> Value .
   eq evalA(Value, T, SgSTR) = Value .
+  eq evalA(not SignalId, T, SgSTR) = not (SgSTR[{sgName SignalId, time T}]) .
+  eq evalA(abs(SignalId), T, SgSTR) = abs(SgSTR[{sgName SignalId, time T}]) .
+  eq evalA(NumUnOp SignalId, T, SgSTR) = NumUnOp (SgSTR[{sgName SignalId, time T}]) .
   eq evalA(SignalId Op AExp1, T, SgSTR) = SgSTR[{sgName SignalId, time T}] Op evalA(AExp1, T, SgSTR) .
   eq evalA(AExp1 Op SignalId, T, SgSTR) = evalA(AExp1, T, SgSTR) Op SgSTR[{sgName SignalId, time T}] .
   eq evalA(SignalId1 Op SignalId2, T, SgSTR) = SgSTR[{sgName SignalId1, time T}] Op SgSTR[{sgName SignalId2, time T}] .
   eq evalA(AExp1 Op AExp2, T, SgSTR) = evalA(AExp1, T, SgSTR) Op evalA(AExp2, T, SgSTR) .
+  eq evalA(SignalId IBinOp AExp1, T, SgSTR) = SgSTR[{sgName SignalId, time T}] IBinOp evalA(AExp1, T, SgSTR) .
+  eq evalA(AExp1 IBinOp SignalId, T, SgSTR) = evalA(AExp1, T, SgSTR) IBinOp SgSTR[{sgName SignalId, time T}] .
+  eq evalA(SignalId1 IBinOp SignalId2, T, SgSTR) = SgSTR[{sgName SignalId1, time T}] IBinOp SgSTR[{sgName SignalId2, time T}] .
+  eq evalA(AExp1 IBinOp AExp2, T, SgSTR) = evalA(AExp1, T, SgSTR) IBinOp evalA(AExp2, T, SgSTR) .
 
   ***--------------------------
   *** VERIFICATION
@@ -908,12 +937,12 @@ mod VHDLMOD is
   eq verify-sg(IOTypeL, SignalId, SgDescSTR) = false [owise] .
   
   *** verify-gen : auxiliar op to verify generic declaration types
-  op verify-gen : VarType Value -> Bool [ctor] .
+  op verify-gen : Type Value -> Bool [ctor] .
   eq verify-gen(natural, NVal) = true .
   eq verify-gen(integer, IntVal) = true .
   eq verify-gen(time, TVal) = true .
   eq verify-gen(positive, PosVal) = true .
-  eq verify-gen(VarType, Val) = false [owise] .
+  eq verify-gen(Type, Val) = false [owise] .
 
 endm
 

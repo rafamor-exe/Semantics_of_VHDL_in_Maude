@@ -4,3 +4,10 @@ ghdl -r <entity_name>
 
 ghdl -r -v <entity_name> --wave=<output_wave_name>.ghw
 gtkwave <output_wave_name>.ghw
+
+
+TO CHECK DEFAULT VALUES
+    process begin
+      report LF &
+      "bit'left: " & bit'image(bit'left) & LF ;
+    end process ;

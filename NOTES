@@ -3,6 +3,7 @@ TODO:
               - Make it optional
 - Remove Inst list on simulation (inst list is only useful at parsing, after that everything is triggered automatically with the scheduler)
 ------------------------------------------------------------
+- [DONE] - FIX multiple delays/scheduled events on same and different times
 - [DONE] - Remove Listeting list 
 - [DONE] - Implement default expression definition
 - [DONE] - Implement bool, bit and int types

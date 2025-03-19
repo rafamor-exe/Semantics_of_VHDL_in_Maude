@@ -195,7 +195,7 @@ fmod VHDL-INSTCOLON-MOD is
   vars AExp1 AExp2 : AExp .
   vars T T1 T2 : Time .
   vars R R1 R2 : Rat .
-  vars TUnit1 TUnit2 : TimeUnit . 
+  vars TUnit TUnit1 TUnit2 : TimeUnit . 
 
   ***op _and_ : AExp AExp -> AExp [ctor assoc] .
   ***op _or_ : AExp AExp -> AExp [ctor assoc] .
@@ -353,6 +353,11 @@ fmod VHDL-INSTCOLON-MOD is
   eq (intVal(Int1) "<=" intVal(Int2)) = boolVal(Int1 <= Int2) .
   eq (intVal(Int1) > intVal(Int2)) = boolVal(Int1 > Int2) .
   eq (intVal(Int1) ">=" intVal(Int2)) = boolVal(Int1 >= Int2) .
+
+  eq (timeVal(R1 TUnit) < timeVal(R2 TUnit)) = boolVal(R1 < R2) .
+  eq (timeVal(R1 TUnit) "<=" timeVal(R2 TUnit)) = boolVal(R1 <= R2) .
+  eq (timeVal(R1 TUnit) > timeVal(R2 TUnit)) = boolVal(R1 > R2) .
+  eq (timeVal(R1 TUnit) ">=" timeVal(R2 TUnit)) = boolVal(R1 >= R2) .
 
 
   op __ : NumUnOp IntVal -> AExp [ctor] .
@@ -614,7 +619,7 @@ mod VHDLMOD is
   var Int : Int .
   var IntVal : IntVal .
   var SchList SchListCp : List{ScheduledInst} .
-  var EventSchSet : Set{Transaction} .
+  var EventSchSet EventSchSet1 : Set{Transaction} .
   var NeIODefL : NeList{IODef} .
   var IODef : IODef .
   var IOType : IOType .
@@ -654,6 +659,7 @@ mod VHDLMOD is
   var NumUnOp : NumUnOp .
   var IBinOp : IBinOp .
   var InputChangeSim : InputChangeSimCtrl .
+  var SgState : SignalState .
 
   *** Workflow: run(IL, EventSchSet) -> Parse -> insitSimArch -> Simulation Loop
   op run : List{InstColon} Set{Transaction} Bool -> VHDLCompleteSim [ctor] .
@@ -791,27 +797,18 @@ mod VHDLMOD is
                             => 
                             < clk(T + delta) [prev: clk(T)] | nil >< schOnTime(SchListCp, T + delta) {scheduledInst: time Tnext, inst I1 } SchList || EventSchSet > << fill-blanks(get-sgL(SgDescSTR), SgSTR, T, Tprev) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: insertDefaultRep(SgDescSTR, SgChangedMap) } {wholeExec: SchListCp} InputChangeSim
                             if anySgChange(SgChangedMap) == true and T =/= Tnext .
-  crl [end-sim-cycle-nextEv] : < clk(T) [prev: clk(Tprev)] | nil >< nil || ({scheduledEvent: time Tnext, args {sgName SignalId, value AExp1} }, EventSchSet) > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp} InputChangeSim
+  crl [end-sim-cycle-nextEv-last] : < clk(T) [prev: clk(Tprev)] | nil >< nil || {scheduledEvent: time Tnext, args {sgName SignalId, value AExp1} } > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp} InputChangeSim
+                                  => 
+                                    < clk(Tnext) [prev: clk(T)] | nil >< schOnTime(SchListCp, Tnext) || empty > << fill-blanks-next-ev(SignalId, get-sgL(SgDescSTR), insert({sgName SignalId, time Tnext}, evalA(AExp1, T, SgSTR), fill-blanks(get-sgL(SgDescSTR), SgSTR, T, Tprev)), Tnext, T) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: insert(SignalId, true, sgChangeOnEv(T, Tnext, SgSTR, get-sgL(SgDescSTR), SgChangedMap)) } {wholeExec: SchListCp} InputChangeSim
+                                  if anySgChange(SgChangedMap) == false and T =/= Tnext .
+  crl [end-sim-cycle-nextEv] : < clk(T) [prev: clk(Tprev)] | nil >< nil || ({scheduledEvent: time Tnext, args {sgName SignalId, value AExp1} }, {scheduledEvent: time T', args SgState }, EventSchSet) > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp} InputChangeSim
                             => 
-                            if EventSchSet == empty then
-                              < clk(Tnext) [prev: clk(T)] | nil >< schOnTime(SchListCp, Tnext) || EventSchSet > << fill-blanks-next-ev(SignalId, get-sgL(SgDescSTR), insert({sgName SignalId, time Tnext}, evalA(AExp1, T, SgSTR), fill-blanks(get-sgL(SgDescSTR), SgSTR, T, Tprev)), Tnext, T) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: insert(SignalId, true, SgChangedMap) } {wholeExec: SchListCp} InputChangeSim
+                            if (Tnext == T') then
+                              < clk(T) [prev: clk(Tprev)] | nil >< nil || ({scheduledEvent: time T', args SgState }, EventSchSet) > << insert({sgName SignalId, time Tnext}, evalA(AExp1, T, SgSTR), fill-blanks(get-sgL(SgDescSTR), SgSTR, T, Tprev)) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp} InputChangeSim
                             else
-                              < clk(T) [prev: clk(Tprev)] | nil >< nil || EventSchSet > << insert({sgName SignalId, time Tnext}, evalA(AExp1, T, SgSTR), fill-blanks(get-sgL(SgDescSTR), SgSTR, T, Tprev)) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: insert(SignalId, true, SgChangedMap) } {wholeExec: SchListCp} InputChangeSim
+                              < clk(Tnext) [prev: clk(T)] | nil >< schOnTime(SchListCp, Tnext) || ({scheduledEvent: time T', args SgState }, EventSchSet) > << fill-blanks-next-ev(SignalId, get-sgL(SgDescSTR), insert({sgName SignalId, time Tnext}, evalA(AExp1, T, SgSTR), fill-blanks(get-sgL(SgDescSTR), SgSTR, T, Tprev)), Tnext, T) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: insert(SignalId, true, SgChangedMap) } {wholeExec: SchListCp} InputChangeSim
                             fi
-                            if anySgChange(SgChangedMap) == false and T =/= Tnext .
-  ***rl [end-sim] : < clk(T) [prev: clk(Tprev)] | nil >< nil || EventSchSet > << SgSTR | VarSTR | ConstSTR >> # DescStores {repeat: B } {wholeExec: SchListCp} InputChangeSim
-  ***              => 
-  ***              < clk(T) [prev: clk(T)] | nil >< nil || EventSchSet > << SgSTR | VarSTR | ConstSTR >> # DescStores {repeat: B } {wholeExec: SchListCp} InputChangeSim .
-                            
-    
-  
-  ***rl [lookup-sg] :  < ClkP1 [prev: clk(T)] | (SignalId <= SignalId1 Op AExp1) ; IL >< TControlSect > << SgSTR | VarSTR | ConstSTR >> # DescStores 
-  ***                => 
-  ***                < ClkP1 [prev: clk(T)] | (SignalId <= lookup-sg(SgSTR, {sgName SignalId1, time T}) Op AExp1) ; IL >< TControlSect > << SgSTR | VarSTR | ConstSTR >> # DescStores .
-  ***                
-  ***rl [lookup-sg-bis] :  < ClkP1 [prev: clk(T)] | (SignalId <= AExp1 Op SignalId1) ; IL >< TControlSect > << SgSTR | VarSTR | ConstSTR >> # DescStores 
-  ***              => 
-  ***              < ClkP1 [prev: clk(T)] | (SignalId <= AExp1 Op lookup-sg(SgSTR, {sgName SignalId1, time T})) ; IL >< TControlSect > << SgSTR | VarSTR | ConstSTR >> # DescStores .
+                            if anySgChange(SgChangedMap) == false and T =/= Tnext and (timeVal(Tnext) "<=" timeVal(T')) == boolVal(true) .
 
 
   *** nop: test instruction
@@ -903,6 +900,10 @@ mod VHDLMOD is
   eq schRestIf(elsif boolVal(true) then IL ElsifSt, ElseSt) = IL .
   eq schRestIf(elsif boolVal(false) then IL ElsifSt, ElseSt) = schRestIf(ElsifSt, ElseSt) .
 
+  op sgChangeOnEv : Time Time Map{SgTimeTuple, Value} List{SignalName} Map{String, Bool} -> Map{String, Bool} .
+  eq sgChangeOnEv(T, Tnext, SgSTR, nil, SgChangedMap) = SgChangedMap .
+  ceq sgChangeOnEv(T, Tnext, SgSTR, SignalId SignalIdL, SgChangedMap) = insert(SignalId, (sg-val-changed(SgSTR[{sgName SignalId, time Tnext}], SignalId, T, SgSTR)), sgChangeOnEv(T, Tnext, SgSTR, SignalIdL, SgChangedMap)) if SgSTR[{sgName SignalId, time Tnext}] =/= undefined .
+  eq sgChangeOnEv(T, Tnext, SgSTR, SignalId SignalIdL, SgChangedMap) = sgChangeOnEv(T, Tnext, SgSTR, SignalIdL, SgChangedMap) .
 
   *** ------------
   

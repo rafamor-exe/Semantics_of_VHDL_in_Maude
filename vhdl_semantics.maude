@@ -666,6 +666,8 @@ mod VHDLMOD is
   eq run(IL, EventSchSet, B) = initSimArch(parse(IL) < events: EventSchSet > ! {inputChangeSim: B}) .
   op run : List{InstColon} Set{Transaction} -> VHDLCompleteSim [ctor] .
   eq run(IL, EventSchSet) = initSimArch(parse(IL) < events: EventSchSet > ! {inputChangeSim: false}) .
+  op run : List{InstColon} -> VHDLCompleteSim [ctor] .
+  eq run(IL) = initSimArch(parse(IL) < events: empty > ! {inputChangeSim: false}) .
 
   op parse : List{InstColon} -> Parser [ctor] .
   eq parse(IL) = [ IL -> nil ] << empty | empty | empty >> # < empty > .

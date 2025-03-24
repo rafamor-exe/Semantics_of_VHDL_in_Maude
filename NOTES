@@ -1,4 +1,8 @@
 TODO:
+- [WIP] Unify definitions of ops between vals and signal names
+       - [WIP] Multiple parses on -_ and _-_
+       - [DONE] Allow single signal name assignments
+       - [DONE] Operators shall have their own properties 
 - [WIP] - Non-deterministic rule to change value of signals
               - Make it optional
 - Remove Inst list on simulation (inst list is only useful at parsing, after that everything is triggered automatically with the scheduler)

@@ -157,14 +157,14 @@ fmod VHDL-INSTCOLON-MOD is
 
   op sg : String -> SignalName [ctor] .
 
-  ops and or nand nor xnor xor : -> Op [ctor] . 
+  ***ops and or nand nor xnor xor : -> Op [ctor] . 
   ops = /= < > "<=" ">=" : -> CompOp [ctor] .
-  ops +_ -_ : IntVal -> IntVal [ctor] .
-  ops +_ -_ : PhysVal -> PhysVal [ctor] .
+  ops -_ : IntVal -> IntVal [ctor prec 20] . ***+_
+  ops -_ : PhysVal -> PhysVal [ctor prec 20] . ***+_
   op abs : IntVal -> IntVal [ctor] .
   op abs : PhysVal -> PhysVal [ctor] .
-  ops + - : -> NumBinOp [ctor] .
-  ops * / mod rem ** : -> IBinOp [ctor] .
+  ***ops + - : -> NumBinOp [ctor] .
+  ***ops * / mod rem ** : -> IBinOp [ctor] .
   ***op _ _ _ : Term Op AExp -> AExp [ctor] .
 
   vars Op : Op .
@@ -203,13 +203,13 @@ fmod VHDL-INSTCOLON-MOD is
   vars R R1 R2 : Rat .
   vars TUnit TUnit1 TUnit2 : TimeUnit . 
 
-  ***op _and_ : AExp AExp -> AExp [ctor assoc] .
-  ***op _or_ : AExp AExp -> AExp [ctor assoc] .
-  ***op _nand_ : AExp AExp -> AExp [ctor assoc] .
-  ***op _nor_ : AExp AExp -> AExp [ctor assoc] .
-  ***op _xnor_ : AExp AExp -> AExp [ctor assoc] .
-  ***op _xor_ : AExp AExp -> AExp [ctor assoc] .
-  op ___ : AExp Op AExp -> AExp [ctor] .
+  op _and_ : AExp AExp -> AExp [ctor assoc comm] .
+  op _or_ : AExp AExp -> AExp [ctor assoc comm] .
+  op _nand_ : AExp AExp -> AExp [ctor assoc comm] .
+  op _nor_ : AExp AExp -> AExp [ctor assoc comm] .
+  op _xnor_ : AExp AExp -> AExp [ctor assoc comm] .
+  op _xor_ : AExp AExp -> AExp [ctor assoc comm] .
+  ***op ___ : AExp Op AExp -> AExp [ctor] .
   op ___ : AExp CompOp AExp -> BoolVal [ctor] .
 
   ***op ___ : SignalName Op AExp -> AExp [ctor] .
@@ -366,12 +366,19 @@ fmod VHDL-INSTCOLON-MOD is
   eq (timeVal(R1 TUnit) ">=" timeVal(R2 TUnit)) = boolVal(R1 >= R2) .
 
 
-  op __ : NumUnOp IntVal -> AExp [ctor] .
-  op ___ : IntVal IBinOp IntVal -> AExp [ctor] .
-  op __ : NumUnOp SignalName -> AExp [ctor] .
-  op ___ : IntVal IBinOp SignalName -> AExp [ctor] .
-  op ___ : SignalName IBinOp IntVal -> AExp [ctor] .
-  op ___ : SignalName IBinOp SignalName -> AExp [ctor] .
+  ***op __ : NumUnOp IntVal -> AExp [ctor] .
+  op _+_ : AExp AExp -> AExp [ctor assoc comm] .
+  op _-_ : AExp AExp -> AExp [ctor assoc] .
+  op _*_ : AExp AExp -> AExp [ctor assoc comm] .
+  op _/_ : AExp AExp -> AExp [ctor assoc] .
+  op _rem_ : AExp AExp -> AExp [ctor assoc] .
+  op _mod_ : AExp AExp -> AExp [ctor assoc] .
+  op _**_ : AExp AExp -> AExp [ctor assoc] .
+  ***op ___ : IntVal IBinOp IntVal -> AExp [ctor] .
+  ***op __ : NumUnOp SignalName -> AExp [ctor] .
+  ***op ___ : IntVal IBinOp SignalName -> AExp [ctor] .
+  ***op ___ : SignalName IBinOp IntVal -> AExp [ctor] .
+  ***op ___ : SignalName IBinOp SignalName -> AExp [ctor] .
 
   ***eq + intVal(Int1) = intVal(+ Int1) .  
   eq - intVal(Int1) = intVal(- Int1) .
@@ -387,11 +394,13 @@ fmod VHDL-INSTCOLON-MOD is
   eq intVal(Int1) mod intVal(Int2) = intVal((Int2 / abs(Int2))*(Int1 / abs(Int1))*(Int1 rem Int2)) .
   eq intVal(Int1) ** intVal(Int2) = intVal(Int1 ^ Int2) .
 
-  op __ : NumUnOp PhysVal -> PhysVal [ctor] .
+  ***op __ : NumUnOp PhysVal -> AExp [ctor] .
   eq - timeVal(R TUnit1) = timeVal((- R) TUnit1) .
   eq abs(timeVal(R TUnit1)) = timeVal(abs(R) TUnit1) .
 
-  op ___ : PhysVal PhysNumBinOp PhysVal -> PhysVal [ctor] .
+  ***op ___ : PhysVal PhysNumBinOp PhysVal -> PhysVal [ctor] .
+  ***op _+_ : AExp AExp -> AExp [ctor assoc comm] .
+  ***op _-_ : AExp AExp -> AExp [ctor assoc] .
   eq timeVal(T1) + timeVal(T2) = timeVal((get-val-time(to-fs(T1)) + get-val-time(to-fs(T2))) fs) .
   eq timeVal(T1) - timeVal(T2) = timeVal((get-val-time(to-fs(T1)) - get-val-time(to-fs(T2))) fs) .
 
@@ -951,7 +960,7 @@ mod VHDLMOD is
   ***eq evalB(SignalId CompOp AExp1, T, SgSTR) = SgSTR[{sgName SignalId, time T}] CompOp AExp1 .
   ***eq evalB(AExp1 CompOp SignalId, T, SgSTR) = AExp1 CompOp SgSTR[{sgName SignalId, time T}] .
   ***eq evalB(SignalId1 CompOp SignalId2, T, SgSTR) = SgSTR[{sgName SignalId1, time T}] CompOp SgSTR[{sgName SignalId2, time T}] .
-  eq evalB(AExp1 CompOp AExp2, T, SgSTR) = evalB(AExp1, T, SgSTR) CompOp evalB(AExp2, T, SgSTR) .
+  eq evalB(AExp1 CompOp AExp2, T, SgSTR) = evalA(AExp1, T, SgSTR) CompOp evalA(AExp2, T, SgSTR) .
 
   ***op __ : NumUnOp SignalName -> IntVal [ctor] .
   ***op ___ : SignalName IBinOp SignalName -> IntVal [ctor] .
@@ -959,17 +968,29 @@ mod VHDLMOD is
   op evalA : AExp Time Map{SgTimeTuple, Value} -> Value .
   eq evalA(Value, T, SgSTR) = Value .
   eq evalA(SignalId, T, SgSTR) = SgSTR[{sgName SignalId, time T}] .
-  ***eq evalA(not SignalId, T, SgSTR) = not (SgSTR[{sgName SignalId, time T}]) .
-  ***eq evalA(abs(SignalId), T, SgSTR) = abs(SgSTR[{sgName SignalId, time T}]) .
-  ***eq evalA(NumUnOp SignalId, T, SgSTR) = NumUnOp (SgSTR[{sgName SignalId, time T}]) .
+  eq evalA(not SignalId, T, SgSTR) = not (SgSTR[{sgName SignalId, time T}]) .
+  eq evalA(abs(SignalId), T, SgSTR) = abs(SgSTR[{sgName SignalId, time T}]) .
+  eq evalA(- SignalId, T, SgSTR) = - (SgSTR[{sgName SignalId, time T}]) .
   ***eq evalA(SignalId Op AExp1, T, SgSTR) = SgSTR[{sgName SignalId, time T}] Op evalA(AExp1, T, SgSTR) .
   ***eq evalA(AExp1 Op SignalId, T, SgSTR) = evalA(AExp1, T, SgSTR) Op SgSTR[{sgName SignalId, time T}] .
   ***eq evalA(SignalId1 Op SignalId2, T, SgSTR) = SgSTR[{sgName SignalId1, time T}] Op SgSTR[{sgName SignalId2, time T}] .
-  eq evalA(AExp1 Op AExp2, T, SgSTR) = evalA(AExp1, T, SgSTR) Op evalA(AExp2, T, SgSTR) .
+  eq evalA(AExp1 and AExp2, T, SgSTR) = evalA(AExp1, T, SgSTR) and evalA(AExp2, T, SgSTR) .
+  eq evalA(AExp1 or AExp2, T, SgSTR) = evalA(AExp1, T, SgSTR) or evalA(AExp2, T, SgSTR) .
+  eq evalA(AExp1 xor AExp2, T, SgSTR) = evalA(AExp1, T, SgSTR) xor evalA(AExp2, T, SgSTR) .
+
+  eq evalA(AExp1 + AExp2, T, SgSTR) = evalA(AExp1, T, SgSTR) + evalA(AExp2, T, SgSTR) .
+  eq evalA(AExp1 - AExp2, T, SgSTR) = evalA(AExp1, T, SgSTR) - evalA(AExp2, T, SgSTR) .
+  eq evalA(AExp1 * AExp2, T, SgSTR) = evalA(AExp1, T, SgSTR) * evalA(AExp2, T, SgSTR) .
+  eq evalA(AExp1 / AExp2, T, SgSTR) = evalA(AExp1, T, SgSTR) / evalA(AExp2, T, SgSTR) .
+  eq evalA(AExp1 rem AExp2, T, SgSTR) = evalA(AExp1, T, SgSTR) rem evalA(AExp2, T, SgSTR) .
+  eq evalA(AExp1 mod AExp2, T, SgSTR) = evalA(AExp1, T, SgSTR) mod evalA(AExp2, T, SgSTR) .
+  eq evalA(AExp1 ** AExp2, T, SgSTR) = evalA(AExp1, T, SgSTR) ** evalA(AExp2, T, SgSTR) .
+  
+  
   ***eq evalA(SignalId IBinOp AExp1, T, SgSTR) = SgSTR[{sgName SignalId, time T}] IBinOp evalA(AExp1, T, SgSTR) .
   ***eq evalA(AExp1 IBinOp SignalId, T, SgSTR) = evalA(AExp1, T, SgSTR) IBinOp SgSTR[{sgName SignalId, time T}] .
   ***eq evalA(SignalId1 IBinOp SignalId2, T, SgSTR) = SgSTR[{sgName SignalId1, time T}] IBinOp SgSTR[{sgName SignalId2, time T}] .
-  eq evalA(AExp1 IBinOp AExp2, T, SgSTR) = evalA(AExp1, T, SgSTR) IBinOp evalA(AExp2, T, SgSTR) .
+  ***eq evalA(AExp1 IBinOp AExp2, T, SgSTR) = evalA(AExp1, T, SgSTR) IBinOp evalA(AExp2, T, SgSTR) .
 
   ***--------------------------
   *** VERIFICATION

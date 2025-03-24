@@ -8,8 +8,8 @@ rew run(
         signal "A" : integer := intVal(10) ;
       )
       begin (
-            ("B" <= ("A" + intVal(5))) ;
-            ("C" <= ("B" + intVal(5))) ;
+            (sg("B") <= (sg("A") + intVal(5))) ;
+            (sg("C") <= (sg("B") + intVal(5))) ;
       )
     end "behaviour" );
-  ), empty) .
+  )) .

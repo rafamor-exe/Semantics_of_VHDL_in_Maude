@@ -143,7 +143,7 @@ fmod VHDL-INSTCOLON-MOD is
   protecting LIST{GenDef} .
   
 
-  sorts Inst InstColon EntityInst EntityInstColon Port SignalName VarConstName SgDecl SgAssign AExp Term Op CompOp Generic .
+  sorts Inst Inst; EntityInst EntityInstColon Port SignalName VarConstName SgDecl SgAssign AExp Term Op CompOp Generic .
   sorts PhysNumBinOp NumUnOp IBinOp NumBinOp .
   subsorts Port Generic < EntityInst .
   subsorts EntityInst SgDecl SgAssign < Inst .
@@ -171,7 +171,7 @@ fmod VHDL-INSTCOLON-MOD is
   vars SignalId : SignalName .
   var EntityI : EntityInst .
 
-  op _; : Inst -> InstColon [ctor prec 24].
+  op _; : Inst -> Inst; [ctor prec 24].
   ***mb (EntityI ;) : EntityInstColon .
   ***op _; : EntityInst -> EntityInstColon [ctor] .
 
@@ -409,8 +409,8 @@ fmod VHDL-INSTCOLON-MOD is
 
 endfm
 
-view InstColon from TRIV to VHDL-INSTCOLON-MOD is
-  sort Elt to InstColon .
+view Inst; from TRIV to VHDL-INSTCOLON-MOD is
+  sort Elt to Inst; .
 endv
 
 view EntityInstColon from TRIV to VHDL-INSTCOLON-MOD is
@@ -461,7 +461,7 @@ fmod VHDL-SCHEDULE-MOD is
 
   *** An ScheduledInst contains the instruction to be executed and the delay
   *** TODO: check if it would be more accurate to just delay an assignment (delay,sg,value)
-  op {scheduledInst: time _, inst _} : Time InstColon -> ScheduledInst [ctor] .
+  op {scheduledInst: time _, inst _} : Time Inst; -> ScheduledInst [ctor] .
 
   *** Transactions (ScheduledEvents) relate time and value for a certain signal
   op {sgName _, value _} : SignalName AExp -> SignalState [ctor] .
@@ -512,7 +512,7 @@ mod VHDLMOD is
   protecting MAP{SgTimeTuple, Value} .
   protecting MAP{SignalName, SgDesc} .
   protecting MAP{SignalName, Bool} .
-  protecting LIST{InstColon} .
+  protecting LIST{Inst;} .
   protecting LIST{EntityInstColon} .
   protecting LIST{SignalName} .
   protecting LIST{ScheduledInst} .
@@ -556,14 +556,14 @@ mod VHDLMOD is
 
   op _ # _ : ValueStores DescStores -> Stores [ctor] .
 
-  op [_->_] : List{InstColon} List{ScheduledInst} -> ParserInsts [ctor] .
+  op [_->_] : List{Inst;} List{ScheduledInst} -> ParserInsts [ctor] .
 
   op _ _ : ParserInsts Stores -> Parser [ctor] .
   op ! {inputChangeSim: _} : Bool -> InputChangeSim [ctor] . 
   op _ < events: _ > _ : Parser List{Transaction<=} InputChangeSim -> ParserTime [ctor] .
 
   *** Code represents a whole VHDL file. Rules will be needed for each code statement/block
-  op <_|_><_>_ : SimClock List{InstColon} TimeControlSection Stores -> VHDLBareSim [ctor] .
+  op <_|_><_>_ : SimClock List{Inst;} TimeControlSection Stores -> VHDLBareSim [ctor] .
   op ! {inputChangeSimCtrl: _, _} : Bool Time -> InputChangeSimCtrl [ctor] .
   op _ {repeat: _} {wholeExec: _} _ : VHDLBareSim Map{SignalName, Bool} List{ScheduledInst} InputChangeSimCtrl -> VHDLCompleteSim [ctor] .
 
@@ -577,29 +577,29 @@ mod VHDLMOD is
   *** Instruction ops declarations (that include inner instruction lists)
   
   *** - Entity
-  op entity _ is _ end _ : String List{InstColon} String -> Entity [ctor] .
+  op entity _ is _ end _ : String List{Inst;} String -> Entity [ctor] .
   op entity _ is end _ : String String -> Entity [ctor] .
   
   *** - Architecture
-  op architecture _ of _ is _ begin _ end _ : String String List{InstColon} List{InstColon} String -> Architecture [ctor] .
+  op architecture _ of _ is _ begin _ end _ : String String List{Inst;} List{Inst;} String -> Architecture [ctor] .
   
   *** - Process
   *** TODO: Variable assignment possibility before begin not included
-  op process _ begin _ end process : List{SignalName} List{InstColon} -> ProcessSensitivity [ctor] .
-  op process begin _ end process : List{InstColon} -> ProcessNoSensitivity [ctor] .
+  op process _ begin _ end process : List{SignalName} List{Inst;} -> ProcessSensitivity [ctor] .
+  op process begin _ end process : List{Inst;} -> ProcessNoSensitivity [ctor] .
   op end process : -> Inst [ctor] .
 
   *** - If statement
   *** TODO: defined precedence
   ***       - Example: red if true then nop ; (elsif true then nop ; elsif true then nop ;) else nop ; end if 
   op end if : -> EndIf [ctor] .
-  op if _ then _ _ _ _ : BoolVal List{InstColon} ElsifStatement ElseStatement EndIf -> IfThen [ctor] .
-  op if _ then _ _ _ : BoolVal List{InstColon} ElseStatement EndIf -> IfThen [ctor] .
-  op if _ then _ _ _ : BoolVal List{InstColon} ElsifStatement EndIf -> IfThen [ctor] .
-  op if _ then _ _ : BoolVal List{InstColon} EndIf -> IfThen [ctor] .
-  op elsif _ then _ _ : BoolVal List{InstColon} ElsifStatement -> ElsifStatement [ctor] .
-  op elsif _ then _ : BoolVal List{InstColon} -> ElsifStatement [ctor] .
-  op else _ : List{InstColon} -> ElseStatement [ctor] .
+  op if _ then _ _ _ _ : BoolVal List{Inst;} ElsifStatement ElseStatement EndIf -> IfThen [ctor] .
+  op if _ then _ _ _ : BoolVal List{Inst;} ElseStatement EndIf -> IfThen [ctor] .
+  op if _ then _ _ _ : BoolVal List{Inst;} ElsifStatement EndIf -> IfThen [ctor] .
+  op if _ then _ _ : BoolVal List{Inst;} EndIf -> IfThen [ctor] .
+  op elsif _ then _ _ : BoolVal List{Inst;} ElsifStatement -> ElsifStatement [ctor] .
+  op elsif _ then _ : BoolVal List{Inst;} -> ElsifStatement [ctor] .
+  op else _ : List{Inst;} -> ElseStatement [ctor] .
   
   *** Wait statement
   *** Unite all clauses in sort ClauseArgs and make them optional 
@@ -631,11 +631,11 @@ mod VHDLMOD is
 
   *** Variable definition
 
-  vars I1 S1 : InstColon .
+  vars I1 S1 : Inst; .
   vars SignalId SignalId1 SignalId2 : SignalName .
   var Val Value Value1 Value2 : Value .
-  var IL IL1 IL2 : List{InstColon} .
-  var NeIL1 NeIL2 : NeList{InstColon} .
+  var IL IL1 IL2 : List{Inst;} .
+  var NeIL1 NeIL2 : NeList{Inst;} .
   var SgSTR : Map{SgTimeTuple, Value} .
   var SgTimeTuple : SgTimeTuple .
   var STR VarSTR ConstSTR : Map{String, Value} .
@@ -698,14 +698,14 @@ mod VHDLMOD is
   var NeSgStrL : NeList{String} .
 
   *** Workflow: run(IL, EventSchSList) -> Parse -> insitSimArch -> Simulation Loop
-  op run : List{InstColon} List{Transaction<=} Bool -> VHDLCompleteSim [ctor] .
+  op run : List{Inst;} List{Transaction<=} Bool -> VHDLCompleteSim [ctor] .
   eq run(IL, EventSchSList, B) = initSimArch(parse(IL) < events: sort(EventSchSList) > ! {inputChangeSim: B}) .
-  op run : List{InstColon} List{Transaction<=} -> VHDLCompleteSim [ctor] .
+  op run : List{Inst;} List{Transaction<=} -> VHDLCompleteSim [ctor] .
   eq run(IL, EventSchSList) = initSimArch(parse(IL) < events: sort(EventSchSList) > ! {inputChangeSim: false}) .
-  op run : List{InstColon} -> VHDLCompleteSim [ctor] .
+  op run : List{Inst;} -> VHDLCompleteSim [ctor] .
   eq run(IL) = initSimArch(parse(IL) < events: nil > ! {inputChangeSim: false}) .
 
-  op parse : List{InstColon} -> Parser [ctor] .
+  op parse : List{Inst;} -> Parser [ctor] .
   eq parse(IL) = [ IL -> nil ] << empty | empty | empty >> # < empty > .
 
   op initSimArch : ParserTime -> VHDLCompleteSim [ctor] .
@@ -721,7 +721,7 @@ mod VHDLMOD is
   eq insertDefaultRep(SignalId |-> { IOType $ Type }, SgChangedMap) = insert(SignalId, false,  SgChangedMap) .
   eq insertDefaultRep((SignalId |-> { IOType $ Type }, SgDescSTR), SgChangedMap) = insert(SignalId, false,  insertDefaultRep(SgDescSTR, SgChangedMap)) .
 
-  ***op initSim : List{InstColon} List{Transaction<=} -> VHDLSim [ctor] .
+  ***op initSim : List{Inst;} List{Transaction<=} -> VHDLSim [ctor] .
   ***eq initSim(IL, EventSchSList) = < clk(0 ns) [prev: clk(0 ns)] | IL >< nil | nil | EventSchSList > << empty | empty | empty >> # < empty > .
 
   *** An entity declared without instructions is equivalent to an entity with an empty list of instructions
@@ -760,7 +760,7 @@ mod VHDLMOD is
   ***                        if verify-sg(in inout, SignalId, SgDescSTR) and R1 =/= R2 . ***T =/= T' and T =/= T' + delta and T =/= T' + delta(2) .
   ***crl [nd-sg-val-change-bis] : < clk(R1 TUnit + TDelta1) [prev: clk(Tprev)] | nil >< SchList || EventSchSList > << ({sgName SignalId, time (R1 TUnit + TDelta1)} |-> StdLogicVal , SgSTR) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp} ! {inputChangeSimCtrl: true , (R2 TUnit) }
   ***                        => 
-  ***                        < clk(R1 TUnit + TDelta1) [prev: clk(Tprev)] | nil >< SchList || EventSchSList > << insert({sgName SignalId, time (R1 TUnit + TDelta1) + delta}, correctVal(not StdLogicVal, SignalId, lookup-sg(SgSTR, {sgName SignalId, time (R1 TUnit + TDelta1) + delta})), SgSTR) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: insert(SignalId,  (sg-val-changed(correctVal(not StdLogicVal, SignalId, lookup-sg(SgSTR, {sgName SignalId, time (R1 TUnit + TDelta1) + delta})), SignalId, (R1 TUnit + TDelta1), SgSTR)), SgChangedMap) } {wholeExec: SchListCp} ! {inputChangeSimCtrl: true , (R1 TUnit + TDelta1) }
+  ***                        < clk(R1 TUnit + TDelta1) [prev: clk(Tprev)] | nil >< SchList || EventSchSList > << insert({sgName SignalId, time (R1 TUnit + TDelta1) + delta}, correctVal(not StdLogicVal, SignalId, lookup-sg(SgSTR, {sgName SignalId, time (R1 TUnit + TDelta1) + delta})), SgSTR) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: insert(SignalId,  (sg-val-changed(correctVal(not StdLogicVal, SignalId, lookup-sg(SgSTR, {sgName SignalId, time (R1 TUnit + TDelta1) + delta})), SignalId, (R1 TUnit + TDelta1), SgSTR)), SgChangedMap) } {wholeExec: SchListCp} ! {inputChangeSimCtrl: true , (R1 TUnit) }
   ***                        if verify-sg(in inout, SignalId, SgDescSTR) and R1 =/= R2 .
 
   rl [parse-entity] : [ (entity Str is IL1 end Str) ; IL -> SchList ]
@@ -869,13 +869,13 @@ mod VHDLMOD is
   ***rl [error] : < Clk | Error ; IL >< TControlSect > ValStores # DescStores => Error ; .
 
   *** List{Inst} operations 
-  op head : NeList{InstColon} -> InstColon .
+  op head : NeList{Inst;} -> Inst; .
   eq head(I1 IL) = I1 .
 
-  op tail : NeList{InstColon} -> List{InstColon} .
+  op tail : NeList{Inst;} -> List{Inst;} .
   eq tail(I1 IL) = IL .
 
-  op exit-block : List{InstColon} -> List{InstColon} .
+  op exit-block : List{Inst;} -> List{Inst;} .
   ***eq exit-block(IL) = IL .
 
   op get-port-sg : List{IODef} -> Inst [ctor] .
@@ -890,7 +890,7 @@ mod VHDLMOD is
   op decl-sg : List{String} Type Value -> Inst [ctor] .
   eq decl-sg(nil, Type, Value) = nop .
 
-  op unfold : List{InstColon} Time -> List{ScheduledInst} [ctor] .
+  op unfold : List{Inst;} Time -> List{ScheduledInst} [ctor] .
   eq unfold(nil, T) = nil .
   eq unfold(I1 IL, T) = {scheduledInst: time T, inst I1} unfold(IL, T) .
 
@@ -936,7 +936,7 @@ mod VHDLMOD is
   eq get-sgL(empty) = nil .
   eq get-sgL((SignalId |-> SgDesc, SgDescSTR)) = SignalId get-sgL(SgDescSTR) .
 
-  op schRestIf : ElsifStatement ElseStatement -> List{InstColon} .
+  op schRestIf : ElsifStatement ElseStatement -> List{Inst;} .
   eq schRestIf(null, null) = nil .
   eq schRestIf(null, else IL) = IL .
   eq schRestIf(elsif boolVal(true) then IL ElsifSt, ElseSt) = IL .

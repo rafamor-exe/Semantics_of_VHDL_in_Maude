@@ -5,7 +5,7 @@ rew run(
     end "example_and" ) ;
     (architecture "behaviour" of "example_and" is 
       (
-        signal "A" : bit := stdlogicVal('0') ;
+        signal "A" : 'std_logic := stdlogicVal('0') ;
       )
       begin (
           process "A" begin
@@ -22,4 +22,4 @@ rew run(
           end process ;
       )
     end "behaviour" );
-  ), ({scheduledEvent: time (5 ns), args {sgName "A", value stdlogicVal('1')}}, {scheduledEvent: time (5 ns), args {sgName "B", value stdlogicVal('1')}})) .
+  ), ({scheduledEvent: time (5 ns), args {sgName "A", value stdlogicVal('1')}} {scheduledEvent: time (5 ns), args {sgName "B", value stdlogicVal('1')}})) .

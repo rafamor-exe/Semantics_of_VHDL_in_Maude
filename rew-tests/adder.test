@@ -13,4 +13,4 @@ rew run(
           "co" <= ((("i0" and "i1") or ("i0" and "ci")) or ("i1" and "ci")) ;
       )
     end "rtl" );
-  ), empty) .
+  )) .

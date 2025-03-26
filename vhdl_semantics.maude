@@ -6,7 +6,7 @@ fmod VHDL-IODEF-MOD is
   subsorts IntType < Type .
 
   ops in out inout : -> IOType [ctor] .
-  ops 'std_logic bit time : -> Type [ctor] .
+  ops 'std_logic bit time bool : -> Type [ctor] .
   ops integer natural positive : -> IntType [ctor] .
 
   op {_$_} : IOType Type -> SgDesc [ctor] .
@@ -875,8 +875,10 @@ mod VHDLMOD is
   op get-port-sg : List{IODef} -> Inst [ctor] .
   eq get-port-sg(nil) = nop .
 
-  op get-sgtype : SgDesc -> IOType .
-  eq get-sgtype({IOType $ Type}) = IOType .
+  op get-sgIOtype : SgDesc -> IOType .
+  eq get-sgIOtype({IOType $ Type}) = IOType .
+  op get-sgType : SgDesc -> Type .
+  eq get-sgType({IOType $ Type}) = Type .
 
   op get-gen : List{GenDef} -> Inst [ctor] .
   eq get-gen(nil) = nop .
@@ -976,11 +978,12 @@ mod VHDLMOD is
   ***--------------------------
   *** verify-sg: auxilar op to verify signal types on instructions
   op verify-sg : List{IOType} SignalName Map{SignalName, SgDesc} -> Bool [ctor] .
-  eq verify-sg(IOType IOTypeL, SignalId, SgDescSTR) = (IOType == get-sgtype(SgDescSTR[SignalId]) or verify-sg(IOTypeL, SignalId, SgDescSTR)) .
+  eq verify-sg(IOType IOTypeL, SignalId, SgDescSTR) = (IOType == get-sgIOtype(SgDescSTR[SignalId]) or verify-sg(IOTypeL, SignalId, SgDescSTR)) .
   eq verify-sg(IOTypeL, SignalId, SgDescSTR) = false [owise] .
   
   *** verify-typeVal : auxiliary op to verify value types
   op verify-typeVal : Type Value -> Bool [ctor] .
+  eq verify-typeVal(bool, BoolVal) = true .
   eq verify-typeVal(bit, BitVal) = true .
   eq verify-typeVal('std_logic, StdLogicVal) = true .
   eq verify-typeVal(natural, NVal) = true .
@@ -1006,6 +1009,12 @@ mod VHDLMOD is
   eq verify-typeAExp(Type, SignalId Op AExp2, SgDescSTR) = verify-typeAExp(Type, SignalId, SgDescSTR) and verify-typeAExp(Type, AExp2, SgDescSTR) .
   eq verify-typeAExp(Type, AExp1 Op SignalId, SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) and verify-typeAExp(Type, SignalId, SgDescSTR) .
   eq verify-typeAExp(Type, SignalId1 Op SignalId2, SgDescSTR) = verify-typeAExp(Type, SignalId1, SgDescSTR) and verify-typeAExp(Type, SignalId2, SgDescSTR) .
+  *** For the case of comparison operators, signals have and values at each side shall have the same value
+  eq verify-typeAExp(Type, AExp1 CompOp AExp2, SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) and verify-typeAExp(Type, AExp2, SgDescSTR) .
+  eq verify-typeAExp(Type, SignalId CompOp AExp2, SgDescSTR) = verify-typeAExp(get-sgType(SgDescSTR[SignalId]), SignalId, SgDescSTR) and verify-typeAExp(get-sgType(SgDescSTR[SignalId]), AExp2, SgDescSTR) .
+  eq verify-typeAExp(Type, AExp1 CompOp SignalId, SgDescSTR) = verify-typeAExp(get-sgType(SgDescSTR[SignalId]), AExp1, SgDescSTR) and verify-typeAExp(get-sgType(SgDescSTR[SignalId]), SignalId, SgDescSTR) .
+  eq verify-typeAExp(Type, SignalId1 CompOp SignalId2, SgDescSTR) = verify-typeAExp(get-sgType(SgDescSTR[SignalId1]), SignalId1, SgDescSTR) and verify-typeAExp(get-sgType(SgDescSTR[SignalId1]), SignalId2, SgDescSTR) .
+  
 
   *** verify-typeBlock : auxiliary op to type-check instructions in an internal instruction list
   op verify-typeBlock : List{Inst;} -> Bool .
@@ -1016,7 +1025,7 @@ mod VHDLMOD is
   eq verify-parseValid([ nil -> SchList ] StoresVar) = true .
   eq verify-parseValid([ IL -> SchList ] StoresVar) = false [owise] .
 
-  ***verify-typeElsifSt(ElsifSt) and verify-typeElseSt(ElseSt)
+  *** verify if-elsif-else statement
   op verify-typeElsifSt : ElsifStatement -> Bool .
   eq verify-typeElsifSt(null) = true .
   eq verify-typeElsifSt(elsif BoolVal then IL) = verify-typeBlock(IL) .

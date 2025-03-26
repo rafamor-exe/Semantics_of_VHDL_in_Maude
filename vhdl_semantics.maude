@@ -212,16 +212,6 @@ fmod VHDL-INSTCOLON-MOD is
   ***op ___ : AExp Op AExp -> AExp [ctor] .
   op ___ : AExp CompOp AExp -> BoolVal [ctor] .
 
-  ***op ___ : SignalName Op AExp -> AExp [ctor] .
-  ***op ___ : AExp Op SignalName -> AExp [ctor] .
-  ***op ___ : SignalName Op SignalName -> AExp [ctor] .
-  ***op not _ : SignalName -> AExp [ctor] .
-  ***op abs : SignalName -> AExp [ctor] .
-
-  ***op ___ : SignalName CompOp AExp -> BoolVal [ctor] .
-  ***op ___ : AExp CompOp SignalName -> BoolVal [ctor] .
-  ***op ___ : SignalName CompOp SignalName -> BoolVal [ctor] .
-
   op not_ : AExp -> AExp [ctor] .
   eq not bitVal('0') = bitVal('1') .
   eq not bitVal('1') = bitVal('0') .
@@ -980,10 +970,7 @@ mod VHDLMOD is
   eq evalA(SignalId, T, SgSTR) = SgSTR[{sgName SignalId, time T}] .
   eq evalA(not SignalId, T, SgSTR) = not (SgSTR[{sgName SignalId, time T}]) .
   eq evalA(abs(SignalId), T, SgSTR) = abs(SgSTR[{sgName SignalId, time T}]) .
-  ***eq evalA(- SignalId, T, SgSTR) = - (SgSTR[{sgName SignalId, time T}]) .
-  ***eq evalA(SignalId Op AExp1, T, SgSTR) = SgSTR[{sgName SignalId, time T}] Op evalA(AExp1, T, SgSTR) .
-  ***eq evalA(AExp1 Op SignalId, T, SgSTR) = evalA(AExp1, T, SgSTR) Op SgSTR[{sgName SignalId, time T}] .
-  ***eq evalA(SignalId1 Op SignalId2, T, SgSTR) = SgSTR[{sgName SignalId1, time T}] Op SgSTR[{sgName SignalId2, time T}] .
+
   eq evalA(AExp1 and AExp2, T, SgSTR) = evalA(AExp1, T, SgSTR) and evalA(AExp2, T, SgSTR) .
   eq evalA(AExp1 or AExp2, T, SgSTR) = evalA(AExp1, T, SgSTR) or evalA(AExp2, T, SgSTR) .
   eq evalA(AExp1 xor AExp2, T, SgSTR) = evalA(AExp1, T, SgSTR) xor evalA(AExp2, T, SgSTR) .
@@ -995,12 +982,6 @@ mod VHDLMOD is
   eq evalA(AExp1 rem AExp2, T, SgSTR) = evalA(AExp1, T, SgSTR) rem evalA(AExp2, T, SgSTR) .
   eq evalA(AExp1 mod AExp2, T, SgSTR) = evalA(AExp1, T, SgSTR) mod evalA(AExp2, T, SgSTR) .
   eq evalA(AExp1 ** AExp2, T, SgSTR) = evalA(AExp1, T, SgSTR) ** evalA(AExp2, T, SgSTR) .
-  
-  
-  ***eq evalA(SignalId IBinOp AExp1, T, SgSTR) = SgSTR[{sgName SignalId, time T}] IBinOp evalA(AExp1, T, SgSTR) .
-  ***eq evalA(AExp1 IBinOp SignalId, T, SgSTR) = evalA(AExp1, T, SgSTR) IBinOp SgSTR[{sgName SignalId, time T}] .
-  ***eq evalA(SignalId1 IBinOp SignalId2, T, SgSTR) = SgSTR[{sgName SignalId1, time T}] IBinOp SgSTR[{sgName SignalId2, time T}] .
-  ***eq evalA(AExp1 IBinOp AExp2, T, SgSTR) = evalA(AExp1, T, SgSTR) IBinOp evalA(AExp2, T, SgSTR) .
 
   ***--------------------------
   *** VERIFICATION
@@ -1034,14 +1015,21 @@ mod VHDLMOD is
   ceq verify-typeAExp(Type, SignalId, SgDescSTR) = 
       Type == Type2
     if {IOType $ Type2} := SgDescSTR[SignalId] .
-  eq verify-typeAExp(Type, AExp1 Op AExp2, SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) and verify-typeAExp(Type, AExp2, SgDescSTR) .
-  eq verify-typeAExp(Type, SignalId Op AExp2, SgDescSTR) = verify-typeAExp(Type, SignalId, SgDescSTR) and verify-typeAExp(Type, AExp2, SgDescSTR) .
-  eq verify-typeAExp(Type, AExp1 Op SignalId, SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) and verify-typeAExp(Type, SignalId, SgDescSTR) .
-  eq verify-typeAExp(Type, SignalId1 Op SignalId2, SgDescSTR) = verify-typeAExp(Type, SignalId1, SgDescSTR) and verify-typeAExp(Type, SignalId2, SgDescSTR) .
+  eq verify-typeAExp(Type, not AExp1, SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) .
+  eq verify-typeAExp(Type, abs(AExp1), SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) .
+  eq verify-typeAExp(Type, AExp1 and AExp2, SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) and verify-typeAExp(Type, AExp2, SgDescSTR) .
+  eq verify-typeAExp(Type, AExp1 or AExp2, SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) and verify-typeAExp(Type, AExp2, SgDescSTR) .
+  eq verify-typeAExp(Type, AExp1 xor AExp2, SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) and verify-typeAExp(Type, AExp2, SgDescSTR) .
+
+  eq verify-typeAExp(Type, AExp1 + AExp2, SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) and verify-typeAExp(Type, AExp2, SgDescSTR) .
+  eq verify-typeAExp(Type, AExp1 - AExp2, SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) and verify-typeAExp(Type, AExp2, SgDescSTR) .
+  eq verify-typeAExp(Type, AExp1 * AExp2, SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) and verify-typeAExp(Type, AExp2, SgDescSTR) .
+  eq verify-typeAExp(Type, AExp1 / AExp2, SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) and verify-typeAExp(Type, AExp2, SgDescSTR) .
+  eq verify-typeAExp(Type, AExp1 rem AExp2, SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) and verify-typeAExp(Type, AExp2, SgDescSTR) .
+  eq verify-typeAExp(Type, AExp1 mod AExp2, SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) and verify-typeAExp(Type, AExp2, SgDescSTR) .
+  eq verify-typeAExp(Type, AExp1 ** AExp2, SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) and verify-typeAExp(Type, AExp2, SgDescSTR) .
   *** For the case of comparison operators, signals have and values at each side shall have the same value
   eq verify-typeAExp(Type, AExp1 CompOp AExp2, SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) and verify-typeAExp(Type, AExp2, SgDescSTR) .
-  eq verify-typeAExp(Type, SignalId CompOp AExp2, SgDescSTR) = verify-typeAExp(get-sgType(SgDescSTR[SignalId]), SignalId, SgDescSTR) and verify-typeAExp(get-sgType(SgDescSTR[SignalId]), AExp2, SgDescSTR) .
-  eq verify-typeAExp(Type, AExp1 CompOp SignalId, SgDescSTR) = verify-typeAExp(get-sgType(SgDescSTR[SignalId]), AExp1, SgDescSTR) and verify-typeAExp(get-sgType(SgDescSTR[SignalId]), SignalId, SgDescSTR) .
   eq verify-typeAExp(Type, SignalId1 CompOp SignalId2, SgDescSTR) = verify-typeAExp(get-sgType(SgDescSTR[SignalId1]), SignalId1, SgDescSTR) and verify-typeAExp(get-sgType(SgDescSTR[SignalId1]), SignalId2, SgDescSTR) .
   
 

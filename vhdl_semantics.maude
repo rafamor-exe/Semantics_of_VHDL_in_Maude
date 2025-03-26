@@ -159,8 +159,8 @@ fmod VHDL-INSTCOLON-MOD is
 
   ***ops and or nand nor xnor xor : -> Op [ctor] . 
   ops = /= < > "<=" ">=" : -> CompOp [ctor] .
-  ops -_ : IntVal -> IntVal [ctor prec 20] . ***+_
-  ops -_ : PhysVal -> PhysVal [ctor prec 20] . ***+_
+  ***ops -_ : IntVal -> AExp [ctor prec 20] . ***+_
+  ***ops -_ : PhysVal -> AExp [ctor prec 20] . ***+_
   op abs : IntVal -> IntVal [ctor] .
   op abs : PhysVal -> PhysVal [ctor] .
   ***ops + - : -> NumBinOp [ctor] .
@@ -381,7 +381,7 @@ fmod VHDL-INSTCOLON-MOD is
   ***op ___ : SignalName IBinOp SignalName -> AExp [ctor] .
 
   ***eq + intVal(Int1) = intVal(+ Int1) .  
-  eq - intVal(Int1) = intVal(- Int1) .
+  ***eq - intVal(Int1) = intVal(- Int1) .
   eq abs(intVal(Int1)) = intVal(abs(Int1)) .
 
   eq intVal(Int1) + intVal(Int2) = intVal(Int1 + Int2) .
@@ -395,7 +395,7 @@ fmod VHDL-INSTCOLON-MOD is
   eq intVal(Int1) ** intVal(Int2) = intVal(Int1 ^ Int2) .
 
   ***op __ : NumUnOp PhysVal -> AExp [ctor] .
-  eq - timeVal(R TUnit1) = timeVal((- R) TUnit1) .
+  ***eq - timeVal(R TUnit1) = timeVal((- R) TUnit1) .
   eq abs(timeVal(R TUnit1)) = timeVal(abs(R) TUnit1) .
 
   ***op ___ : PhysVal PhysNumBinOp PhysVal -> PhysVal [ctor] .
@@ -978,7 +978,7 @@ mod VHDLMOD is
   eq evalA(SignalId, T, SgSTR) = SgSTR[{sgName SignalId, time T}] .
   eq evalA(not SignalId, T, SgSTR) = not (SgSTR[{sgName SignalId, time T}]) .
   eq evalA(abs(SignalId), T, SgSTR) = abs(SgSTR[{sgName SignalId, time T}]) .
-  eq evalA(- SignalId, T, SgSTR) = - (SgSTR[{sgName SignalId, time T}]) .
+  ***eq evalA(- SignalId, T, SgSTR) = - (SgSTR[{sgName SignalId, time T}]) .
   ***eq evalA(SignalId Op AExp1, T, SgSTR) = SgSTR[{sgName SignalId, time T}] Op evalA(AExp1, T, SgSTR) .
   ***eq evalA(AExp1 Op SignalId, T, SgSTR) = evalA(AExp1, T, SgSTR) Op SgSTR[{sgName SignalId, time T}] .
   ***eq evalA(SignalId1 Op SignalId2, T, SgSTR) = SgSTR[{sgName SignalId1, time T}] Op SgSTR[{sgName SignalId2, time T}] .

@@ -655,9 +655,10 @@ mod VHDLMOD is
   var IODef : IODef .
   var IOType : IOType .
   var IOTypeL : List{IOType} .
-  var Type : Type .
+  var Type Type2 : Type .
   var IODefL : List{IODef} .
   var StdLogicVal StdLogicVal1 StdLogicVal2 : StdLogicVal .
+  var BitVal : BitVal .
   var AExp1 AExp2 : AExp .
   var Error : Error .
   vars Op : Op .
@@ -780,11 +781,12 @@ mod VHDLMOD is
   crl [parse-get-gen] : [ (get-gen((Str : Type := Val ;) GenDefL)) ; exit-block(IL) -> SchList ] << SgSTR | VarSTR | ConstSTR >> # DescStores
                 =>
                 [ get-gen(GenDefL) ; exit-block(IL) -> SchList ] << SgSTR | VarSTR | insert(Str, Val, ConstSTR) >> # DescStores 
-                if verify-gen(Type, Val) .
+                if verify-typeVal(Type, Val) .
 
-  rl [parse-signal] : [ (signal NeSgStrL : Type := Value) ; IL -> SchList ]
+  crl [parse-signal] : [ (signal NeSgStrL : Type := Value) ; IL -> SchList ]
                 => 
-                [ decl-sg(NeSgStrL, Type, Value) ; exit-block(IL) -> SchList ] .
+                [ decl-sg(NeSgStrL, Type, Value) ; exit-block(IL) -> SchList ]
+                if verify-typeVal(Type, Value) .
   
   rl [parse-decl-sg] : [ decl-sg(SgStr SgStrL, Type, Value) ; exit-block(IL) -> SchList ] << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR >
                 =>
@@ -794,14 +796,20 @@ mod VHDLMOD is
                           => 
                           [ IL1 exit-block(IL2 exit-block(IL)) -> SchList ] StoresVar .  
                           
-  rl [parse-process] : [ (process SgNameL begin IL2 end process) ; IL -> SchList ]
+  crl [parse-process] : [ (process SgNameL begin IL2 end process) ; IL -> SchList ]
                     => 
-                    [ IL -> SchList {scheduledInst: time 0 ns, inst (process SgNameL begin IL2 end process) ;} ] .
+                    [ IL -> SchList {scheduledInst: time 0 ns, inst (process SgNameL begin IL2 end process) ;} ]
+                    if verify-typeBlock(IL2) .
 
   crl [parse-assign-sg-val] : [ (SignalId <= AExp1 after Tdelay) ; IL -> SchList ] << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > 
                             => 
                             [ IL -> SchList {scheduledInst: time 0 ns, inst (SignalId <= AExp1 after Tdelay) ;} ] << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > 
-                            if verify-sg(out inout, SignalId, SgDescSTR) .
+                            if verify-sg(out inout, SignalId, SgDescSTR) and verify-typeAssignment(SignalId, AExp1, SgDescSTR) .
+  
+  crl [parse-if-then] : [(if BoolVal then IL ElsifSt ElseSt EndIf) ; IL -> SchList ] 
+                        =>
+                        [IL -> SchList ]
+                        if verify-typeBlock(IL) and verify-typeElsifSt(ElsifSt) and verify-typeElseSt(ElseSt) .
 
   *** assign-sg-val : assign a value to a signal after solving all AExp and signal lookups
   rl [assign-sg-val-sch] : < clk(T) [prev: clk(Tprev)] | nil >< {scheduledInst: time T, inst (SignalId <= AExp1 after Tdelay) ;}  SchList || EventSchSList > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp} InputChangeSim
@@ -1000,13 +1008,52 @@ mod VHDLMOD is
   eq verify-sg(IOType IOTypeL, SignalId, SgDescSTR) = (IOType == get-sgtype(SgDescSTR[SignalId]) or verify-sg(IOTypeL, SignalId, SgDescSTR)) .
   eq verify-sg(IOTypeL, SignalId, SgDescSTR) = false [owise] .
   
-  *** verify-gen : auxiliar op to verify generic declaration types
-  op verify-gen : Type Value -> Bool [ctor] .
-  eq verify-gen(natural, NVal) = true .
-  eq verify-gen(integer, IntVal) = true .
-  eq verify-gen(time, TVal) = true .
-  eq verify-gen(positive, PosVal) = true .
-  eq verify-gen(Type, Val) = false [owise] .
+  *** verify-typeVal : auxiliary op to verify value types
+  op verify-typeVal : Type Value -> Bool [ctor] .
+  eq verify-typeVal(bit, BitVal) = true .
+  eq verify-typeVal('std_logic, StdLogicVal) = true .
+  eq verify-typeVal(natural, NVal) = true .
+  eq verify-typeVal(integer, IntVal) = true .
+  eq verify-typeVal(time, TVal) = true .
+  eq verify-typeVal(positive, PosVal) = true .
+  eq verify-typeVal(Type, Val) = false [owise] .
 
+  *** verify-typeAssignment : auxiliary op to verify has correct type in signal assignment
+  op verify-typeAssignment : SignalName AExp Map{SignalName, SgDesc} -> Bool .
+  ceq verify-typeAssignment(SignalId, AExp1, SgDescSTR) = 
+      verify-typeAExp(Type, AExp1, SgDescSTR) 
+    if {IOType $ Type} := SgDescSTR[SignalId] .
+  
+  *** verify-typeAExp : auxiliary op to type-check AExp
+  op verify-typeAExp : Type AExp Map{SignalName, SgDesc} -> Bool .
+  op verify-typeAExp : Type SignalName Map{SignalName, SgDesc} -> Bool .
+  eq verify-typeAExp(Type, Val, SgDescSTR) = verify-typeVal(Type, Val) .
+  ceq verify-typeAExp(Type, SignalId, SgDescSTR) = 
+      Type == Type2
+    if {IOType $ Type2} := SgDescSTR[SignalId] .
+  eq verify-typeAExp(Type, AExp1 Op AExp2, SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) and verify-typeAExp(Type, AExp2, SgDescSTR) .
+  eq verify-typeAExp(Type, SignalId Op AExp2, SgDescSTR) = verify-typeAExp(Type, SignalId, SgDescSTR) and verify-typeAExp(Type, AExp2, SgDescSTR) .
+  eq verify-typeAExp(Type, AExp1 Op SignalId, SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) and verify-typeAExp(Type, SignalId, SgDescSTR) .
+  eq verify-typeAExp(Type, SignalId1 Op SignalId2, SgDescSTR) = verify-typeAExp(Type, SignalId1, SgDescSTR) and verify-typeAExp(Type, SignalId2, SgDescSTR) .
+
+  *** verify-typeBlock : auxiliary op to type-check instructions in an internal instruction list
+  op verify-typeBlock : List{Inst;} -> Bool .
+  eq verify-typeBlock(IL) = true .
+  eq verify-typeBlock(IL) = verify-parseValid(parse(IL)) .
+
+  op verify-parseValid : Parser -> Bool .
+  eq verify-parseValid([ nil -> SchList ] StoresVar) = true .
+  eq verify-parseValid([ IL -> SchList ] StoresVar) = false [owise] .
+
+  ***verify-typeElsifSt(ElsifSt) and verify-typeElseSt(ElseSt)
+  op verify-typeElsifSt : ElsifStatement -> Bool .
+  eq verify-typeElsifSt(null) = true .
+  eq verify-typeElsifSt(elsif BoolVal then IL) = verify-typeBlock(IL) .
+  eq verify-typeElsifSt(elsif BoolVal then IL ElsifSt) = verify-typeBlock(IL) and verify-typeElsifSt(ElsifSt) .
+
+  op verify-typeElseSt : ElseStatement -> Bool .
+  eq verify-typeElseSt(null) = true .
+  eq verify-typeElsifSt(else IL) = verify-typeBlock(IL) .
+  
 endm
 

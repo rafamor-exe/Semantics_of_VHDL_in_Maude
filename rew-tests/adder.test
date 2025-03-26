@@ -9,8 +9,8 @@ rew run(
         signal "i1" : bit := bitVal('1') ;
       )
       begin (
-          "s" <= (("i0" xor "i1") xor "ci") ;
-          "co" <= ((("i0" and "i1") or ("i0" and "ci")) or ("i1" and "ci")) ;
+          sg("s") <= (sg("i0") xor sg("i1") xor sg("ci")) ;
+          sg("co") <= (((sg("i0") and sg("i1")) or (sg("i0") and sg("ci"))) or (sg("i1") and sg("ci"))) ;
       )
     end "rtl" );
   )) .

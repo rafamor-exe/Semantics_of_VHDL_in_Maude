@@ -1,0 +1,39 @@
+mod VHDL-TEST-MOD is
+
+    protecting VHDLMOD .
+
+    ops test test2 : -> VHDLCompleteSim [ctor] .
+
+    eq test = run(
+                    (
+                        (entity "test" is
+                            port (("ci" : in  integer ;)  ("s" : out  integer ;) ("co" : out  integer ;)  ) ;
+                        end "test" ) ;
+                        (architecture "bhv" of "test" is 
+                        (
+                            signal "i0" : integer := intVal(10) ;
+                            signal "i1" : integer := intVal(15) ;
+                        )
+                        begin (
+                            sg("s") <= (not sg("i0")) ;
+                        )
+                        end "bhv" );
+                    )) .
+    
+    eq test2 = run(
+                    (
+                        (entity "test2" is
+                            port (("B" : inout  integer ;) ("C" : inout  integer ;)  ) ;
+                        end "test2" ) ;
+                        (architecture "behaviour" of "test2" is 
+                        (
+                            signal "A" : integer := intVal(10) ;
+                        )
+                        begin (
+                                sg("B") <= (sg("A") + intVal(5) + intVal(10)) ;
+                                sg("C") <= ((sg("B") + intVal(5)) - sg("B")) ;
+                        )
+                        end "behaviour" );
+                    )) .
+
+endm

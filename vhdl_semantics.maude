@@ -1042,9 +1042,8 @@ mod VHDLMOD is
   eq verify-typeAExp(Type, AExp1 + AExp2, SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) and verify-typeAExp(Type, AExp2, SgDescSTR) .
   eq verify-typeAExp(Type, AExp1 - AExp2, SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) and verify-typeAExp(Type, AExp2, SgDescSTR) .
   eq verify-typeAExp(IntT, AExp1 * AExp2, SgDescSTR) = verify-typeAExp(IntT, AExp1, SgDescSTR) and verify-typeAExp(IntT, AExp2, SgDescSTR) .
-  eq verify-typeAExp(PhysT, AExp1 * AExp2, SgDescSTR) = 
-                                                  (verify-typeAExp(integer, AExp1, SgDescSTR) and verify-typeAExp(PhysT, AExp2, SgDescSTR))
-                                                  or (verify-typeAExp(PhysT, AExp1, SgDescSTR) and verify-typeAExp(integer, AExp2, SgDescSTR)) .
+  eq verify-typeAExp(PhysT, AExp1 * AExp2, SgDescSTR) = (verify-typeAExp(integer, AExp1, SgDescSTR) and verify-typeAExp(PhysT, AExp2, SgDescSTR))
+                                                     or (verify-typeAExp(PhysT, AExp1, SgDescSTR) and verify-typeAExp(integer, AExp2, SgDescSTR)) .
   eq verify-typeAExp(IntT, AExp1 / AExp2, SgDescSTR) = verify-typeAExp(IntT, AExp1, SgDescSTR) and verify-typeAExp(IntT, AExp2, SgDescSTR) .
   eq verify-typeAExp(PhysT, AExp1 / AExp2, SgDescSTR) = verify-typeAExp(PhysT, AExp1, SgDescSTR) and verify-typeAExp(integer, AExp2, SgDescSTR) .
   eq verify-typeAExp(PhysT, AExp1 / AExp2, SgDescSTR) = verify-typeAExp(PhysT, AExp1, SgDescSTR) and verify-typeAExp(PhysT, AExp2, SgDescSTR) .

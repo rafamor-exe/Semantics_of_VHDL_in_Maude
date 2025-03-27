@@ -2,11 +2,12 @@ fmod VHDL-IODEF-MOD is
 
   protecting STRING .
 
-  sorts IODef IOType Type SgDesc IntType .
-  subsorts IntType < Type .
+  sorts IODef IOType Type SgDesc IntType PhysType .
+  subsorts IntType PhysType < Type .
 
   ops in out inout : -> IOType [ctor] .
-  ops 'std_logic bit time bool : -> Type [ctor] .
+  ops 'std_logic bit bool : -> Type [ctor] .
+  ops time : -> PhysType [ctor] .
   ops integer natural positive : -> IntType [ctor] .
 
   op {_$_} : IOType Type -> SgDesc [ctor] .
@@ -49,6 +50,21 @@ fmod VHDL-VALUE-MOD is
   op natVal : Nat -> NatVal [ctor] .
   op posVal : NzNat -> PosVal [ctor] .
   op boolVal : Bool -> BoolVal [ctor] .
+
+  var BitVal : BitVal .
+  var IntVal : IntVal .
+  var StdLogicVal : StdLogicVal .
+  var TimeVal : TimeVal .
+  var BoolVal : BoolVal .
+  var NatVal : NatVal .
+
+  op get-typeVal : Value -> Type .
+  eq get-typeVal(BitVal) = bit .
+  eq get-typeVal(IntVal) = integer .
+  eq get-typeVal(StdLogicVal) = 'std_logic .
+  eq get-typeVal(TimeVal) = time .
+  eq get-typeVal(BoolVal) = bool .
+  eq get-typeVal(NatVal) = natural .
 
   ops TRUE FALSE : -> BoolVal [ctor] .
   eq TRUE = boolVal(true) .
@@ -426,7 +442,7 @@ fmod VHDL-ATTRIBUTES-MOD is
   ops ASCENDING LEFT RIGHT HIGH LOW : -> TypeAttr [ctor] .
 
   var T : Type .
-  var IntT : Type .
+  var IntT : IntType .
 
   eq IntT ' ASCENDING = boolVal(true) .
   eq 'std_logic ' ASCENDING = boolVal(true) .
@@ -646,6 +662,8 @@ mod VHDLMOD is
   var IOType : IOType .
   var IOTypeL : List{IOType} .
   var Type Type2 : Type .
+  var PhysT : PhysType .
+  var IntT : IntType .
   var IODefL : List{IODef} .
   var StdLogicVal StdLogicVal1 StdLogicVal2 : StdLogicVal .
   var BitVal : BitVal .
@@ -1007,10 +1025,10 @@ mod VHDLMOD is
   ceq verify-typeAssignment(SignalId, AExp1, SgDescSTR) = 
       verify-typeAExp(Type, AExp1, SgDescSTR) 
     if {IOType $ Type} := SgDescSTR[SignalId] .
+  eq verify-typeAssignment(SignalId, AExp1, SgDescSTR) = false [owise] .
   
   *** verify-typeAExp : auxiliary op to type-check AExp
   op verify-typeAExp : Type AExp Map{SignalName, SgDesc} -> Bool .
-  op verify-typeAExp : Type SignalName Map{SignalName, SgDesc} -> Bool .
   eq verify-typeAExp(Type, Val, SgDescSTR) = verify-typeVal(Type, Val) .
   ceq verify-typeAExp(Type, SignalId, SgDescSTR) = 
       Type == Type2
@@ -1023,15 +1041,29 @@ mod VHDLMOD is
 
   eq verify-typeAExp(Type, AExp1 + AExp2, SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) and verify-typeAExp(Type, AExp2, SgDescSTR) .
   eq verify-typeAExp(Type, AExp1 - AExp2, SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) and verify-typeAExp(Type, AExp2, SgDescSTR) .
-  eq verify-typeAExp(Type, AExp1 * AExp2, SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) and verify-typeAExp(Type, AExp2, SgDescSTR) .
-  eq verify-typeAExp(Type, AExp1 / AExp2, SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) and verify-typeAExp(Type, AExp2, SgDescSTR) .
-  eq verify-typeAExp(Type, AExp1 rem AExp2, SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) and verify-typeAExp(Type, AExp2, SgDescSTR) .
-  eq verify-typeAExp(Type, AExp1 mod AExp2, SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) and verify-typeAExp(Type, AExp2, SgDescSTR) .
-  eq verify-typeAExp(Type, AExp1 ** AExp2, SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) and verify-typeAExp(Type, AExp2, SgDescSTR) .
+  eq verify-typeAExp(IntT, AExp1 * AExp2, SgDescSTR) = verify-typeAExp(IntT, AExp1, SgDescSTR) and verify-typeAExp(IntT, AExp2, SgDescSTR) .
+  eq verify-typeAExp(PhysT, AExp1 * AExp2, SgDescSTR) = 
+                                                  (verify-typeAExp(integer, AExp1, SgDescSTR) and verify-typeAExp(PhysT, AExp2, SgDescSTR))
+                                                  or (verify-typeAExp(PhysT, AExp1, SgDescSTR) and verify-typeAExp(integer, AExp2, SgDescSTR)) .
+  eq verify-typeAExp(IntT, AExp1 / AExp2, SgDescSTR) = verify-typeAExp(IntT, AExp1, SgDescSTR) and verify-typeAExp(IntT, AExp2, SgDescSTR) .
+  eq verify-typeAExp(PhysT, AExp1 / AExp2, SgDescSTR) = verify-typeAExp(PhysT, AExp1, SgDescSTR) and verify-typeAExp(integer, AExp2, SgDescSTR) .
+  eq verify-typeAExp(PhysT, AExp1 / AExp2, SgDescSTR) = verify-typeAExp(PhysT, AExp1, SgDescSTR) and verify-typeAExp(PhysT, AExp2, SgDescSTR) .
+  eq verify-typeAExp(IntT, AExp1 rem AExp2, SgDescSTR) = verify-typeAExp(IntT, AExp1, SgDescSTR) and verify-typeAExp(IntT, AExp2, SgDescSTR) .
+  eq verify-typeAExp(IntT, AExp1 mod AExp2, SgDescSTR) = verify-typeAExp(IntT, AExp1, SgDescSTR) and verify-typeAExp(IntT, AExp2, SgDescSTR) .
+  eq verify-typeAExp(PhysT, AExp1 rem AExp2, SgDescSTR) = verify-typeAExp(PhysT, AExp1, SgDescSTR) and verify-typeAExp(PhysT, AExp2, SgDescSTR) .
+  eq verify-typeAExp(PhysT, AExp1 mod AExp2, SgDescSTR) = verify-typeAExp(PhysT, AExp1, SgDescSTR) and verify-typeAExp(PhysT, AExp2, SgDescSTR) .
+  eq verify-typeAExp(IntT, AExp1 ** AExp2, SgDescSTR) = verify-typeAExp(IntT, AExp1, SgDescSTR) and verify-typeAExp(integer, AExp2, SgDescSTR) .
   *** For the case of comparison operators, signals have and values at each side shall have the same value
-  eq verify-typeAExp(Type, AExp1 CompOp AExp2, SgDescSTR) = verify-typeAExp(Type, AExp1, SgDescSTR) and verify-typeAExp(Type, AExp2, SgDescSTR) .
-  eq verify-typeAExp(Type, SignalId1 CompOp SignalId2, SgDescSTR) = verify-typeAExp(get-sgType(SgDescSTR[SignalId1]), SignalId1, SgDescSTR) and verify-typeAExp(get-sgType(SgDescSTR[SignalId1]), SignalId2, SgDescSTR) .
-  
+  eq verify-typeAExp(bool, AExp1 CompOp AExp2, SgDescSTR) = verify-sameType(AExp1, AExp2, SgDescSTR) .
+  ***eq verify-typeAExp(bool, SignalId1 CompOp SignalId2, SgDescSTR) = verify-typeAExp(get-sgType(SgDescSTR[SignalId1]), SignalId1, SgDescSTR) and verify-typeAExp(get-sgType(SgDescSTR[SignalId1]), SignalId2, SgDescSTR) .
+
+  op verify-sameType : AExp AExp Map{SignalName, SgDesc} -> Bool .
+  eq verify-sameType(AExp1, AExp2, SgDescSTR) = (verify-typeAExp(bit, AExp1, SgDescSTR) and verify-typeAExp(bit, AExp2, SgDescSTR))
+                                             or (verify-typeAExp('std_logic, AExp1, SgDescSTR) and verify-typeAExp('std_logic, AExp2, SgDescSTR))
+                                             or (verify-typeAExp(integer, AExp1, SgDescSTR) and verify-typeAExp(integer, AExp2, SgDescSTR))
+                                             or (verify-typeAExp(bool, AExp1, SgDescSTR) and verify-typeAExp(bool, AExp2, SgDescSTR))
+                                             or (verify-typeAExp(time, AExp1, SgDescSTR) and verify-typeAExp(time, AExp2, SgDescSTR))
+                                             or (verify-typeAExp(natural, AExp1, SgDescSTR) and verify-typeAExp(natural, AExp2, SgDescSTR)) .
 
   *** verify-typeBlock : auxiliary op to type-check instructions in an internal instruction list
   op verify-typeBlock : List{Inst;} -> Bool .

@@ -35,11 +35,11 @@ fmod VHDL-VALUE-MOD is
   protecting VHDL-IODEF-MOD .
 
   sorts StdLogic Value IntVal StdLogicVal TimeVal NatVal PosVal BoolVal BitVal NumVal .
-  sorts PhysVal Time TimeUnit TimeDelta Delta Bit StdLogicAux .
+  sorts PhysVal Time TimeUnit TimeDelta Delta Bit StdLogicAux NzTime .
   sorts To1 To0 .
   subsorts BitVal BoolVal PosVal NatVal IntVal StdLogicVal TimeVal < Value . *** checkear. añadir un wrapper a los tipos
   subsorts Bit StdLogicAux < StdLogic < StdLogicVal .
-  subsorts TimeDelta < Time .
+  subsorts NzTime TimeDelta < Time .
   subsorts TimeVal < PhysVal .
   ***subsorts IntVal PhysVal < NumVal .
 
@@ -121,6 +121,9 @@ fmod VHDL-VALUE-MOD is
   ceq min(R1 TUnit, R2 TUnit) = R1 TUnit if R1 <= R2 .
   eq min(R1 TUnit, R2 TUnit) = R2 TUnit [owise] .
 
+  var NzR : NzRat .
+  mb NzR TUnit : NzTime .
+
   ***var StdLogic : StdLogic .
   ***mb 'H' : To1 .
   ***mb '1' : To1 . 
@@ -159,7 +162,7 @@ fmod VHDL-INSTCOLON-MOD is
   protecting LIST{GenDef} .
   
 
-  sorts Inst Inst; EntityInst EntityInstColon Port SignalName VarConstName SgDecl SgAssign AExp Term Op CompOp Generic .
+  sorts Inst Inst; EntityInst EntityInstColon Port SignalName VarConstName SgDecl SgAssign AExp Term Op CompOp Generic DelayMechanism .
   sorts PhysNumBinOp NumUnOp IBinOp NumBinOp .
   subsorts Port Generic < EntityInst .
   subsorts EntityInst SgDecl SgAssign < Inst .
@@ -199,7 +202,10 @@ fmod VHDL-INSTCOLON-MOD is
   *** - Generic
   op generic (_) : NeList{GenDef} -> Generic [ctor] .
 
-  op _ <= _ after _ : SignalName AExp Time -> SgAssign [ctor prec 23] .
+
+  ops transport inertial : -> DelayMechanism [ctor] .
+
+  op _ <= _ _ after _ : SignalName DelayMechanism AExp Time -> SgAssign [ctor prec 23] .
   op _ <= _ : SignalName AExp -> SgAssign [ctor prec 23] .
 
   vars Value Value1 Value2 : Value .
@@ -556,7 +562,6 @@ mod VHDLMOD is
   op EmptyList : -> EmptyList [ctor] .
   op error : String -> Error [ctor] .
 
-  op _||_ : List{ScheduledInst} List{Transaction<=} -> TimeControlSection [ctor] .
   op << _ | _ | _ >> : Map{SgTimeTuple, Value} Map{String, Value} Map{String, Value} -> ValueStores [ctor] .
   op < _ > : Map{SignalName, SgDesc} -> DescStores [ctor] .
 
@@ -569,6 +574,7 @@ mod VHDLMOD is
   op _ < events: _ > _ : Parser List{Transaction<=} InputChangeSim -> ParserTime [ctor] .
 
   *** Code represents a whole VHDL file. Rules will be needed for each code statement/block
+  op _||_ : List{ScheduledInst} List{Transaction<=} -> TimeControlSection [ctor] .
   op <_|_><_>_ : SimClock List{Inst;} TimeControlSection Stores -> VHDLBareSim [ctor] .
   op ! {inputChangeSimCtrl: _, _} : Bool Time -> InputChangeSimCtrl [ctor] .
   op _ {repeat: _} {wholeExec: _} _ : VHDLBareSim Map{SignalName, Bool} List{ScheduledInst} InputChangeSimCtrl -> VHDLCompleteSim [ctor] .
@@ -657,6 +663,7 @@ mod VHDLMOD is
   var IntVal : IntVal .
   var SchList SchListCp : List{ScheduledInst} .
   var EventSchSList : List{Transaction<=} .
+  var NeEventSchSList : NeList{Transaction<=} .
   var NeIODefL : NeList{IODef} .
   var IODef : IODef .
   var IOType : IOType .
@@ -705,6 +712,8 @@ mod VHDLMOD is
   var TDelta1 : Delta .
   var SgStrL : List{String} .
   var NeSgStrL : NeList{String} .
+  var DelayMech : DelayMechanism .
+  var NzTDelay : NzTime .
 
   *** Workflow: run(IL, EventSchSList) -> Parse -> insitSimArch -> Simulation Loop
   op run : List{Inst;} List{Transaction<=} Bool -> VHDLCompleteSim [ctor] .
@@ -752,7 +761,7 @@ mod VHDLMOD is
   eq signal NeSgStrL : Type = signal NeSgStrL : Type := (Type ' LEFT) .
 
   *** A signal assignment assumes 0 ns delay if after clause is not present
-  eq SignalId <= AExp1 = SignalId <= AExp1 after (0 ns) .
+  eq SignalId <= AExp1 = SignalId <= inertial AExp1 after (0 ns) .
 
   *** TODO: Restrict values of SgSTR to StdLogic with cmb
 
@@ -809,9 +818,9 @@ mod VHDLMOD is
                     [ IL -> SchList {scheduledInst: time 0 ns, inst (process SgNameL begin IL2 end process) ;} ]
                     if verify-typeBlock(IL2) .
 
-  crl [parse-assign-sg-val] : [ (SignalId <= AExp1 after Tdelay) ; IL -> SchList ] << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > 
+  crl [parse-assign-sg-val] : [ (SignalId <= DelayMech AExp1 after Tdelay) ; IL -> SchList ] << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > 
                             => 
-                            [ IL -> SchList {scheduledInst: time 0 ns, inst (SignalId <= AExp1 after Tdelay) ;} ] << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > 
+                            [ IL -> SchList {scheduledInst: time 0 ns, inst (SignalId <= DelayMech AExp1 after Tdelay) ;} ] << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > 
                             if verify-sg(out inout, SignalId, SgDescSTR) and verify-typeAssignment(SignalId, AExp1, SgDescSTR) .
   
   crl [parse-if-then] : [(if BoolVal then IL ElsifSt ElseSt EndIf) ; IL -> SchList ] 
@@ -820,12 +829,19 @@ mod VHDLMOD is
                         if verify-typeBlock(IL) and verify-typeElsifSt(ElsifSt) and verify-typeElseSt(ElseSt) .
 
   *** assign-sg-val : assign a value to a signal after solving all AExp and signal lookups
-  rl [assign-sg-val-sch] : < clk(T) [prev: clk(Tprev)] | nil >< {scheduledInst: time T, inst (SignalId <= AExp1 after Tdelay) ;}  SchList || EventSchSList > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp} InputChangeSim
+  rl [assign-sg-val-sch] : < clk(T) [prev: clk(Tprev)] | nil >< {scheduledInst: time T, inst (SignalId <= DelayMech AExp1 after Tdelay) ;}  SchList || EventSchSList > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp} InputChangeSim
                       => 
                       if Tdelay == (0 ns) then
+                        *** assignment is not delayed
                         < clk(T) [prev: clk(Tprev)] | nil >< SchList || EventSchSList > << insert({sgName SignalId, time T + delta}, correctVal(evalA(AExp1, T, SgSTR), SignalId, lookup-sg(SgSTR, {sgName SignalId, time T + delta})), SgSTR) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: insert(SignalId,  (sg-val-changed(correctVal(evalA(AExp1, T, SgSTR), SignalId, lookup-sg(SgSTR, {sgName SignalId, time T + delta})), SignalId, T, SgSTR)), SgChangedMap) } {wholeExec: SchListCp} InputChangeSim
                       else
-                        < clk(T) [prev: clk(Tprev)] | nil >< SchList || sort({scheduledEvent: time get-time(timeVal(T) + timeVal(Tdelay)), args {sgName SignalId, value AExp1}} EventSchSList) > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp} InputChangeSim
+                        if DelayMech == transport or (DelayMech == inertial and isStable(T, Tdelay, SignalId, evalA(AExp1, T, SgSTR), EventSchSList)) then
+                          *** inertial delay without inestability is equivalent to transport delay
+                          < clk(T) [prev: clk(Tprev)] | nil >< SchList || sort({scheduledEvent: time get-time(timeVal(T) + timeVal(Tdelay)), args {sgName SignalId, value AExp1}} EventSchSList) > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp} InputChangeSim
+                        else
+                          *** Inertial delay correcting inestability
+                          < clk(T) [prev: clk(Tprev)] | nil >< SchList || sort({scheduledEvent: time get-time(timeVal(T) + timeVal(Tdelay)), args {sgName SignalId, value AExp1}} purge(T, Tdelay, SignalId, evalA(AExp1, T, SgSTR), EventSchSList)) > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp} InputChangeSim
+                        fi
                       fi .
   rl [process] : < clk(T) ClockPrev | nil >< {scheduledInst: time T, inst (process SgNameL begin IL2 end process) ;}  SchList || EventSchSList > << SgSTR | VarSTR | ConstSTR >> # DescStores 
                 => 
@@ -964,6 +980,26 @@ mod VHDLMOD is
   eq sgChangeOnEv(T, Tnext, SgSTR, nil, SgChangedMap) = SgChangedMap .
   ceq sgChangeOnEv(T, Tnext, SgSTR, SignalId SignalIdL, SgChangedMap) = insert(SignalId, (sg-val-changed(SgSTR[{sgName SignalId, time Tnext}], SignalId, T, SgSTR)), sgChangeOnEv(T, Tnext, SgSTR, SignalIdL, SgChangedMap)) if SgSTR[{sgName SignalId, time Tnext}] =/= undefined .
   eq sgChangeOnEv(T, Tnext, SgSTR, SignalId SignalIdL, SgChangedMap) = sgChangeOnEv(T, Tnext, SgSTR, SignalIdL, SgChangedMap) .
+
+  op purge : Time Time SignalName Value List{Transaction<=} -> List{Transaction<=} .
+  eq purge(T, 0 ns, SignalId, Val, NeEventSchSList) = NeEventSchSList .
+  eq purge(T, NzTDelay, SignalId, Val, nil) = nil .
+  eq purge(T, NzTDelay, SignalId1, Value1, {scheduledEvent: time T', args {sgName SignalId2, value Value2}} EventSchSList) = 
+        if timeVal(T) < timeVal(T') and timeVal(T') < timeVal(T) + timeVal(NzTDelay) and SignalId1 == SignalId2 and Value1 =/= Value2 then
+          purge(T, NzTDelay, SignalId1, Value1, EventSchSList)
+        else
+          ({scheduledEvent: time T', args {sgName SignalId2, value Value2}} purge(T, NzTDelay, SignalId1, Value1, EventSchSList))
+        fi [owise] .
+  
+  op isStable : Time Time SignalName Value List{Transaction<=} -> Bool .
+  eq isStable(T, 0 ns, SignalId, Val, NeEventSchSList) = true .
+  eq isStable(T, NzTDelay, SignalId, Val, nil) = true .
+  eq isStable(T, NzTDelay, SignalId1, Value1, {scheduledEvent: time T', args {sgName SignalId2, value Value2}} EventSchSList) =
+        if timeVal(T) < timeVal(T') and timeVal(T') < timeVal(T) + timeVal(NzTDelay) and SignalId1 == SignalId2 and Value1 =/= Value2 then
+          false
+        else
+          isStable(T, NzTDelay, SignalId1, Value1, EventSchSList)
+        fi [owise] .
 
   *** ------------
   

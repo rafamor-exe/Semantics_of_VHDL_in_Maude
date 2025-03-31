@@ -38,7 +38,7 @@ fmod VHDL-VALUE-MOD is
   sorts PhysVal Time TimeUnit TimeDelta Delta Bit StdLogicAux NzTime .
   sorts To1 To0 .
   subsorts BitVal BoolVal PosVal NatVal IntVal StdLogicVal TimeVal < Value . *** checkear. añadir un wrapper a los tipos
-  subsorts Bit StdLogicAux < StdLogic < StdLogicVal .
+  subsorts Bit StdLogicAux < StdLogic .
   subsorts NzTime TimeDelta < Time .
   subsorts TimeVal < PhysVal .
   ***subsorts IntVal PhysVal < NumVal .
@@ -206,6 +206,7 @@ fmod VHDL-INSTCOLON-MOD is
   ops transport inertial : -> DelayMechanism [ctor] .
 
   op _ <= _ _ after _ : SignalName DelayMechanism AExp Time -> SgAssign [ctor prec 23] .
+  op _ <= _ after _ : SignalName AExp Time -> SgAssign [ctor prec 23] .
   op _ <= _ : SignalName AExp -> SgAssign [ctor prec 23] .
 
   vars Value Value1 Value2 : Value .
@@ -224,6 +225,7 @@ fmod VHDL-INSTCOLON-MOD is
   vars T T1 T2 : Time .
   vars R R1 R2 : Rat .
   vars TUnit TUnit1 TUnit2 : TimeUnit . 
+  var CompOp : CompOp .
 
   op _and_ : AExp AExp -> AExp [ctor assoc comm] .
   op _or_ : AExp AExp -> AExp [ctor assoc comm] .
@@ -265,8 +267,8 @@ fmod VHDL-INSTCOLON-MOD is
   eq boolVal(B1) or boolVal(B2) = boolVal(B1 or B2) .
 
   op orU : StdLogicVal -> StdLogicVal .
-  eq orU('1') = stdlogicVal('1') .
-  eq orU('H') = stdlogicVal('1') .
+  eq orU(stdlogicVal('1')) = stdlogicVal('1') .
+  eq orU(stdlogicVal('H')) = stdlogicVal('1') .
   eq orU(StdLogicVal) = stdlogicVal('U') [owise] .
 
   ***op _and_ : StdLogic AExp -> AExp [ctor] .
@@ -288,8 +290,8 @@ fmod VHDL-INSTCOLON-MOD is
   eq boolVal(B1) and boolVal(B2) = boolVal(B1 and B2) .
 
   op andU : StdLogicVal -> StdLogicVal .
-  eq orU('0') = stdlogicVal('0') .
-  eq orU('L') = stdlogicVal('0') .
+  eq orU(stdlogicVal('0')) = stdlogicVal('0') .
+  eq orU(stdlogicVal('L')) = stdlogicVal('0') .
   eq orU(StdLogicVal) = stdlogicVal('U') [owise] .
 
   ***op _xor_ : AExp AExp -> AExp [ditto ctor] .
@@ -376,6 +378,7 @@ fmod VHDL-INSTCOLON-MOD is
   eq (timeVal(R1 TUnit) "<=" timeVal(R2 TUnit)) = boolVal(R1 <= R2) .
   eq (timeVal(R1 TUnit) > timeVal(R2 TUnit)) = boolVal(R1 > R2) .
   eq (timeVal(R1 TUnit) ">=" timeVal(R2 TUnit)) = boolVal(R1 >= R2) .
+  eq (timeVal(T1) CompOp timeVal(T2)) = intVal(get-val-time(to-fs(T1))) CompOp intVal(get-val-time(to-fs(T2))) [owise] .
 
 
   ***op __ : NumUnOp IntVal -> AExp [ctor] .
@@ -476,7 +479,7 @@ fmod VHDL-SCHEDULE-MOD is
   op {scheduledInst: time _, inst _} : Time Inst; -> ScheduledInst [ctor] .
 
   *** Transactions (ScheduledEvents) relate time and value for a certain signal
-  op {sgName _, value _} : SignalName AExp -> SignalState [ctor] .
+  op {sgName _, value _} : SignalName Value -> SignalState [ctor] .
   op {scheduledEvent: time _, args _} : Time SignalState -> Transaction [ctor] .
 
   op {sgName _, time _} : SignalName Time -> SgTimeTuple [ctor] .
@@ -761,6 +764,7 @@ mod VHDLMOD is
   eq signal NeSgStrL : Type = signal NeSgStrL : Type := (Type ' LEFT) .
 
   *** A signal assignment assumes 0 ns delay if after clause is not present
+  eq SignalId <= AExp1 after T = SignalId <= inertial AExp1 after T .
   eq SignalId <= AExp1 = SignalId <= inertial AExp1 after (0 ns) .
 
   *** TODO: Restrict values of SgSTR to StdLogic with cmb
@@ -837,10 +841,10 @@ mod VHDLMOD is
                       else
                         if DelayMech == transport or (DelayMech == inertial and isStable(T, Tdelay, SignalId, evalA(AExp1, T, SgSTR), EventSchSList)) then
                           *** inertial delay without inestability is equivalent to transport delay
-                          < clk(T) [prev: clk(Tprev)] | nil >< SchList || sort({scheduledEvent: time get-time(timeVal(T) + timeVal(Tdelay)), args {sgName SignalId, value AExp1}} EventSchSList) > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp} InputChangeSim
+                          < clk(T) [prev: clk(Tprev)] | nil >< SchList || sort({scheduledEvent: time get-time(timeVal(T) + timeVal(Tdelay)), args {sgName SignalId, value evalA(AExp1, T, SgSTR)}} EventSchSList) > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp} InputChangeSim
                         else
                           *** Inertial delay correcting inestability
-                          < clk(T) [prev: clk(Tprev)] | nil >< SchList || sort({scheduledEvent: time get-time(timeVal(T) + timeVal(Tdelay)), args {sgName SignalId, value AExp1}} purge(T, Tdelay, SignalId, evalA(AExp1, T, SgSTR), EventSchSList)) > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp} InputChangeSim
+                          < clk(T) [prev: clk(Tprev)] | nil >< SchList || sort({scheduledEvent: time get-time(timeVal(T) + timeVal(Tdelay)), args {sgName SignalId, value evalA(AExp1, T, SgSTR)}} purge(T, Tdelay, SignalId, evalA(AExp1, T, SgSTR), EventSchSList)) > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp} InputChangeSim
                         fi
                       fi .
   rl [process] : < clk(T) ClockPrev | nil >< {scheduledInst: time T, inst (process SgNameL begin IL2 end process) ;}  SchList || EventSchSList > << SgSTR | VarSTR | ConstSTR >> # DescStores 
@@ -984,22 +988,34 @@ mod VHDLMOD is
   op purge : Time Time SignalName Value List{Transaction<=} -> List{Transaction<=} .
   eq purge(T, 0 ns, SignalId, Val, NeEventSchSList) = NeEventSchSList .
   eq purge(T, NzTDelay, SignalId, Val, nil) = nil .
-  eq purge(T, NzTDelay, SignalId1, Value1, {scheduledEvent: time T', args {sgName SignalId2, value Value2}} EventSchSList) = 
-        if timeVal(T) < timeVal(T') and timeVal(T') < timeVal(T) + timeVal(NzTDelay) and SignalId1 == SignalId2 and Value1 =/= Value2 then
-          purge(T, NzTDelay, SignalId1, Value1, EventSchSList)
-        else
-          ({scheduledEvent: time T', args {sgName SignalId2, value Value2}} purge(T, NzTDelay, SignalId1, Value1, EventSchSList))
-        fi [owise] .
+  eq purge(T, NzTDelay, SignalId1, Value1, ({scheduledEvent: time T', args {sgName SignalId1, value Value1}} EventSchSList)) = 
+    ({scheduledEvent: time T', args {sgName SignalId1, value Value1}} purge(T, NzTDelay, SignalId1, Value1, EventSchSList)) .
+  eq purge(T, NzTDelay, SignalId1, Value1, ({scheduledEvent: time T', args {sgName SignalId2, value Value2}} EventSchSList)) = 
+    ({scheduledEvent: time T', args {sgName SignalId2, value Value2}} purge(T, NzTDelay, SignalId1, Value1, EventSchSList)) .
+  eq purge(T, NzTDelay, SignalId1, Value1, ({scheduledEvent: time T', args {sgName SignalId2, value Value2}} EventSchSList)) = 
+    if ((timeVal(T) < timeVal(T')) and (timeVal(T') < (timeVal(T) + timeVal(NzTDelay)))) == boolVal(true) then
+      purge(T, NzTDelay, SignalId1, Value1, EventSchSList)
+    else
+      ({scheduledEvent: time T', args {sgName SignalId2, value Value2}} purge(T, NzTDelay, SignalId1, Value1, EventSchSList))
+    fi .
+  eq purge(T, NzTDelay, SignalId1, Value1, ({scheduledEvent: time T', args {sgName SignalId2, value Value2}} EventSchSList)) = 
+        ({scheduledEvent: time T', args {sgName SignalId2, value Value2}} purge(T, NzTDelay, SignalId1, Value1, EventSchSList)) [owise] .
   
   op isStable : Time Time SignalName Value List{Transaction<=} -> Bool .
   eq isStable(T, 0 ns, SignalId, Val, NeEventSchSList) = true .
   eq isStable(T, NzTDelay, SignalId, Val, nil) = true .
-  eq isStable(T, NzTDelay, SignalId1, Value1, {scheduledEvent: time T', args {sgName SignalId2, value Value2}} EventSchSList) =
-        if timeVal(T) < timeVal(T') and timeVal(T') < timeVal(T) + timeVal(NzTDelay) and SignalId1 == SignalId2 and Value1 =/= Value2 then
-          false
-        else
-          isStable(T, NzTDelay, SignalId1, Value1, EventSchSList)
-        fi [owise] .
+  eq isStable(T, NzTDelay, SignalId1, Value1, ({scheduledEvent: time T', args {sgName SignalId1, value Value1}} EventSchSList)) = 
+    isStable(T, NzTDelay, SignalId1, Value1, EventSchSList) .
+  ceq isStable(T, NzTDelay, SignalId1, Value1, ({scheduledEvent: time T', args {sgName SignalId2, value Value2}} EventSchSList)) = 
+    isStable(T, NzTDelay, SignalId1, Value1, EventSchSList) if SignalId1 =/= SignalId2 .
+  eq isStable(T, NzTDelay, SignalId1, Value1, ({scheduledEvent: time T', args {sgName SignalId2, value Value2}} EventSchSList)) = 
+    if ((timeVal(T) < timeVal(T')) and (timeVal(T') < (timeVal(T) + timeVal(NzTDelay)))) == boolVal(true) then
+      false
+    else
+      isStable(T, NzTDelay, SignalId1, Value1, EventSchSList)
+    fi .
+  eq isStable(T, NzTDelay, SignalId1, Value1, ({scheduledEvent: time T', args {sgName SignalId2, value Value2}} EventSchSList)) = 
+        isStable(T, NzTDelay, SignalId1, Value1, EventSchSList) [owise] .
 
   *** ------------
   

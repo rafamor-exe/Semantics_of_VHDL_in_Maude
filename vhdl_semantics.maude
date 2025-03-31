@@ -38,7 +38,7 @@ fmod VHDL-VALUE-MOD is
   sorts PhysVal Time TimeUnit TimeDelta Delta Bit StdLogicAux .
   sorts To1 To0 .
   subsorts BitVal BoolVal PosVal NatVal IntVal StdLogicVal TimeVal < Value . *** checkear. añadir un wrapper a los tipos
-  subsorts Bit StdLogicAux < StdLogic < StdLogicVal .
+  subsorts Bit StdLogicAux < StdLogic .
   subsorts TimeDelta < Time .
   subsorts TimeVal < PhysVal .
   ***subsorts IntVal PhysVal < NumVal .
@@ -177,8 +177,8 @@ fmod VHDL-INSTCOLON-MOD is
   ops = /= < > "<=" ">=" : -> CompOp [ctor] .
   ***ops -_ : IntVal -> AExp [ctor prec 20] . ***+_
   ***ops -_ : PhysVal -> AExp [ctor prec 20] . ***+_
-  op abs : IntVal -> IntVal [ctor] .
-  op abs : PhysVal -> PhysVal [ctor] .
+  op abs(_) : IntVal -> IntVal [ctor prec 14] .
+  op abs(_) : PhysVal -> PhysVal [ctor prec 14] .
   ***ops + - : -> NumBinOp [ctor] .
   ***ops * / mod rem ** : -> IBinOp [ctor] .
   ***op _ _ _ : Term Op AExp -> AExp [ctor] .
@@ -219,16 +219,16 @@ fmod VHDL-INSTCOLON-MOD is
   vars R R1 R2 : Rat .
   vars TUnit TUnit1 TUnit2 : TimeUnit . 
 
-  op _and_ : AExp AExp -> AExp [ctor assoc comm] .
-  op _or_ : AExp AExp -> AExp [ctor assoc comm] .
-  op _nand_ : AExp AExp -> AExp [ctor assoc comm] .
-  op _nor_ : AExp AExp -> AExp [ctor assoc comm] .
-  op _xnor_ : AExp AExp -> AExp [ctor assoc comm] .
-  op _xor_ : AExp AExp -> AExp [ctor assoc comm] .
+  op _and_ : AExp AExp -> AExp [ctor assoc comm prec 21] .
+  op _or_ : AExp AExp -> AExp [ctor assoc comm prec 21] .
+  op _nand_ : AExp AExp -> AExp [ctor assoc comm prec 21] .
+  op _nor_ : AExp AExp -> AExp [ctor assoc comm prec 21] .
+  op _xnor_ : AExp AExp -> AExp [ctor assoc comm prec 21] .
+  op _xor_ : AExp AExp -> AExp [ctor assoc comm prec 21] .
   ***op ___ : AExp Op AExp -> AExp [ctor] .
-  op ___ : AExp CompOp AExp -> BoolVal [ctor] .
+  op ___ : AExp CompOp AExp -> BoolVal [ctor prec 20] .
 
-  op not_ : AExp -> AExp [ctor] .
+  op not_ : AExp -> AExp [ctor prec 14] .
   eq not bitVal('0') = bitVal('1') .
   eq not bitVal('1') = bitVal('0') .
   eq not stdlogicVal('U') = stdlogicVal('U') .
@@ -259,8 +259,8 @@ fmod VHDL-INSTCOLON-MOD is
   eq boolVal(B1) or boolVal(B2) = boolVal(B1 or B2) .
 
   op orU : StdLogicVal -> StdLogicVal .
-  eq orU('1') = stdlogicVal('1') .
-  eq orU('H') = stdlogicVal('1') .
+  eq orU(stdlogicVal('1')) = stdlogicVal('1') .
+  eq orU(stdlogicVal('H')) = stdlogicVal('1') .
   eq orU(StdLogicVal) = stdlogicVal('U') [owise] .
 
   ***op _and_ : StdLogic AExp -> AExp [ctor] .
@@ -282,8 +282,8 @@ fmod VHDL-INSTCOLON-MOD is
   eq boolVal(B1) and boolVal(B2) = boolVal(B1 and B2) .
 
   op andU : StdLogicVal -> StdLogicVal .
-  eq orU('0') = stdlogicVal('0') .
-  eq orU('L') = stdlogicVal('0') .
+  eq orU(stdlogicVal('0')) = stdlogicVal('0') .
+  eq orU(stdlogicVal('L')) = stdlogicVal('0') .
   eq orU(StdLogicVal) = stdlogicVal('U') [owise] .
 
   ***op _xor_ : AExp AExp -> AExp [ditto ctor] .
@@ -373,13 +373,13 @@ fmod VHDL-INSTCOLON-MOD is
 
 
   ***op __ : NumUnOp IntVal -> AExp [ctor] .
-  op _+_ : AExp AExp -> AExp [ctor assoc comm] .
-  op _-_ : AExp AExp -> AExp [ctor assoc] .
-  op _*_ : AExp AExp -> AExp [ctor assoc comm] .
-  op _/_ : AExp AExp -> AExp [ctor assoc] .
-  op _rem_ : AExp AExp -> AExp [ctor assoc] .
-  op _mod_ : AExp AExp -> AExp [ctor assoc] .
-  op _**_ : AExp AExp -> AExp [ctor assoc] .
+  op _+_ : AExp AExp -> AExp [ctor assoc comm prec 18] .
+  op _-_ : AExp AExp -> AExp [ctor assoc prec 18] .
+  op _*_ : AExp AExp -> AExp [ctor assoc comm prec 16] .
+  op _/_ : AExp AExp -> AExp [ctor assoc prec 16] .
+  op _rem_ : AExp AExp -> AExp [ctor assoc prec 16] .
+  op _mod_ : AExp AExp -> AExp [ctor assoc prec 16] .
+  op _**_ : AExp AExp -> AExp [ctor assoc prec 15] .
   ***op ___ : IntVal IBinOp IntVal -> AExp [ctor] .
   ***op __ : NumUnOp SignalName -> AExp [ctor] .
   ***op ___ : IntVal IBinOp SignalName -> AExp [ctor] .
@@ -986,8 +986,8 @@ mod VHDLMOD is
   op evalA : AExp Time Map{SgTimeTuple, Value} -> Value .
   eq evalA(Value, T, SgSTR) = Value .
   eq evalA(SignalId, T, SgSTR) = SgSTR[{sgName SignalId, time T}] .
-  eq evalA(not SignalId, T, SgSTR) = not (SgSTR[{sgName SignalId, time T}]) .
-  eq evalA(abs(SignalId), T, SgSTR) = abs(SgSTR[{sgName SignalId, time T}]) .
+  eq evalA(not AExp1, T, SgSTR) = not evalA(AExp1, T, SgSTR) .
+  eq evalA(abs(AExp1), T, SgSTR) = abs(evalA(AExp1, T, SgSTR)) .
 
   eq evalA(AExp1 and AExp2, T, SgSTR) = evalA(AExp1, T, SgSTR) and evalA(AExp2, T, SgSTR) .
   eq evalA(AExp1 or AExp2, T, SgSTR) = evalA(AExp1, T, SgSTR) or evalA(AExp2, T, SgSTR) .

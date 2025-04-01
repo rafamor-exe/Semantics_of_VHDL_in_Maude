@@ -875,18 +875,29 @@ mod VHDLMOD is
                             => 
                             < clk(T + delta) [prev: clk(T)] | nil >< schOnTime(SchListCp, T + delta) {scheduledInst: time Tnext, inst I1 } SchList || EventSchSList > << fill-blanks(get-sgL(SgDescSTR), SgSTR, T, Tprev) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: insertDefaultRep(SgDescSTR, SgChangedMap) } {wholeExec: SchListCp} InputChangeSim
                             if anySgChange(SgChangedMap) == true and T =/= Tnext .
-  crl [end-sim-cycle-nextEv-last] : < clk(T) [prev: clk(Tprev)] | nil >< nil || {scheduledEvent: time Tnext, args {sgName SignalId, value AExp1} } > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp} InputChangeSim
+  crl [end-sim-cycle-nextEv-last] : < clk(T) [prev: clk(Tprev)] | nil >< nil || {scheduledEvent: time Tnext, args {sgName SignalId, value Val} } > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp} InputChangeSim
                                   => 
-                                    < clk(Tnext) [prev: clk(T)] | nil >< schOnTime(SchListCp, Tnext) || nil > << fill-blanks-next-ev(SignalId, get-sgL(SgDescSTR), insert({sgName SignalId, time Tnext}, evalA(AExp1, T, SgSTR), fill-blanks(get-sgL(SgDescSTR), SgSTR, T, Tprev)), Tnext, T) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: insert(SignalId, true, sgChangeOnEv(T, Tnext, SgSTR, get-sgL(SgDescSTR), SgChangedMap)) } {wholeExec: SchListCp} InputChangeSim
+                                    if Val  =/= fill-blanks(get-sgL(SgDescSTR), SgSTR, T, Tprev)[{sgName SignalId, time T}] then
+                                      < clk(Tnext) [prev: clk(T)] | nil >< schOnTime(SchListCp, Tnext) || nil > << fill-blanks-next-ev(SignalId, get-sgL(SgDescSTR), insert({sgName SignalId, time Tnext}, Val , fill-blanks(get-sgL(SgDescSTR), SgSTR, T, Tprev)), Tnext, T) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: insert(SignalId, true, sgChangeOnEv(T, Tnext, SgSTR, get-sgL(SgDescSTR), SgChangedMap)) } {wholeExec: SchListCp} InputChangeSim
+                                    else
+                                      < clk(Tnext) [prev: clk(T)] | nil >< nil || nil > << fill-blanks-next-ev(SignalId, get-sgL(SgDescSTR), insert({sgName SignalId, time Tnext}, Val , fill-blanks(get-sgL(SgDescSTR), SgSTR, T, Tprev)), Tnext, T) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: sgChangeOnEv(T, Tnext, SgSTR, get-sgL(SgDescSTR), SgChangedMap) } {wholeExec: SchListCp} InputChangeSim
+                                    fi
                                   if anySgChange(SgChangedMap) == false and T =/= Tnext .
-  crl [end-sim-cycle-nextEv] : < clk(T) [prev: clk(Tprev)] | nil >< nil || {scheduledEvent: time Tnext, args {sgName SignalId, value AExp1} } {scheduledEvent: time T', args SgState } EventSchSList > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp} InputChangeSim
+                                    ***and Val := evalA(AExp1, T, SgSTR) 
+                                    ***and SgSTR' := fill-blanks(get-sgL(SgDescSTR), SgSTR, T, Tprev) .
+  crl [end-sim-cycle-nextEv] : < clk(T) [prev: clk(Tprev)] | nil >< nil || {scheduledEvent: time Tnext, args {sgName SignalId, value Val} } {scheduledEvent: time T', args SgState } EventSchSList > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp} InputChangeSim
                             => 
                             if (Tnext == T') then
-                              < clk(T) [prev: clk(Tprev)] | nil >< nil || ({scheduledEvent: time T', args SgState } EventSchSList) > << insert({sgName SignalId, time Tnext}, evalA(AExp1, T, SgSTR), fill-blanks(get-sgL(SgDescSTR), SgSTR, T, Tprev)) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp} InputChangeSim
+                              < clk(T) [prev: clk(Tprev)] | nil >< nil || ({scheduledEvent: time T', args SgState } EventSchSList) > << insert({sgName SignalId, time Tnext}, Val, fill-blanks(get-sgL(SgDescSTR), SgSTR, T, Tprev)) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp} InputChangeSim
                             else
-                              < clk(Tnext) [prev: clk(T)] | nil >< schOnTime(SchListCp, Tnext) || ({scheduledEvent: time T', args SgState } EventSchSList) > << fill-blanks-next-ev(SignalId, get-sgL(SgDescSTR), insert({sgName SignalId, time Tnext}, evalA(AExp1, T, SgSTR), fill-blanks(get-sgL(SgDescSTR), SgSTR, T, Tprev)), Tnext, T) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: insert(SignalId, true, SgChangedMap) } {wholeExec: SchListCp} InputChangeSim
+                              if Val =/= fill-blanks(get-sgL(SgDescSTR), SgSTR, T, Tprev)[{sgName SignalId, time T}] then
+                                < clk(Tnext) [prev: clk(T)] | nil >< schOnTime(SchListCp, Tnext) || ({scheduledEvent: time T', args SgState } EventSchSList) > << fill-blanks-next-ev(SignalId, get-sgL(SgDescSTR), insert({sgName SignalId, time Tnext}, Val, fill-blanks(get-sgL(SgDescSTR), SgSTR, T, Tprev)), Tnext, T) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: insert(SignalId, true, SgChangedMap) } {wholeExec: SchListCp} InputChangeSim
+                              else
+                                < clk(Tnext) [prev: clk(T)] | nil >< nil || ({scheduledEvent: time T', args SgState } EventSchSList) > << fill-blanks-next-ev(SignalId, get-sgL(SgDescSTR), insert({sgName SignalId, time Tnext}, Val, fill-blanks(get-sgL(SgDescSTR), SgSTR, T, Tprev)), Tnext, T) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp} InputChangeSim
+                              fi
                             fi
                             if anySgChange(SgChangedMap) == false and T =/= Tnext .
+                              ***and Val := evalA(AExp1, T, SgSTR) and SgSTR' := fill-blanks(get-sgL(SgDescSTR), SgSTR, T, Tprev) .
 
 
   *** nop: test instruction
@@ -991,13 +1002,14 @@ mod VHDLMOD is
   eq purge(T, NzTDelay, SignalId1, Value1, ({scheduledEvent: time T', args {sgName SignalId1, value Value1}} EventSchSList)) = 
     ({scheduledEvent: time T', args {sgName SignalId1, value Value1}} purge(T, NzTDelay, SignalId1, Value1, EventSchSList)) .
   eq purge(T, NzTDelay, SignalId1, Value1, ({scheduledEvent: time T', args {sgName SignalId2, value Value2}} EventSchSList)) = 
-    ({scheduledEvent: time T', args {sgName SignalId2, value Value2}} purge(T, NzTDelay, SignalId1, Value1, EventSchSList)) .
-  eq purge(T, NzTDelay, SignalId1, Value1, ({scheduledEvent: time T', args {sgName SignalId2, value Value2}} EventSchSList)) = 
-    if ((timeVal(T) < timeVal(T')) and (timeVal(T') < (timeVal(T) + timeVal(NzTDelay)))) == boolVal(true) then
+    if (timeVal(T) < timeVal(T')) == boolVal(true) and (timeVal(T') "<=" (timeVal(T) + timeVal(NzTDelay))) == boolVal(true) then
       purge(T, NzTDelay, SignalId1, Value1, EventSchSList)
     else
       ({scheduledEvent: time T', args {sgName SignalId2, value Value2}} purge(T, NzTDelay, SignalId1, Value1, EventSchSList))
     fi .
+  *** TODO: Check if this can be converted to unconditional eq
+  ceq purge(T, NzTDelay, SignalId1, Value1, ({scheduledEvent: time T', args {sgName SignalId2, value Value2}} EventSchSList)) = 
+    ({scheduledEvent: time T', args {sgName SignalId2, value Value2}} purge(T, NzTDelay, SignalId1, Value1, EventSchSList)) if SignalId1 =/= SignalId2 .
   eq purge(T, NzTDelay, SignalId1, Value1, ({scheduledEvent: time T', args {sgName SignalId2, value Value2}} EventSchSList)) = 
         ({scheduledEvent: time T', args {sgName SignalId2, value Value2}} purge(T, NzTDelay, SignalId1, Value1, EventSchSList)) [owise] .
   
@@ -1009,7 +1021,7 @@ mod VHDLMOD is
   ceq isStable(T, NzTDelay, SignalId1, Value1, ({scheduledEvent: time T', args {sgName SignalId2, value Value2}} EventSchSList)) = 
     isStable(T, NzTDelay, SignalId1, Value1, EventSchSList) if SignalId1 =/= SignalId2 .
   eq isStable(T, NzTDelay, SignalId1, Value1, ({scheduledEvent: time T', args {sgName SignalId2, value Value2}} EventSchSList)) = 
-    if ((timeVal(T) < timeVal(T')) and (timeVal(T') < (timeVal(T) + timeVal(NzTDelay)))) == boolVal(true) then
+    if (timeVal(T) < timeVal(T')) == boolVal(true) and (timeVal(T') "<=" (timeVal(T) + timeVal(NzTDelay))) == boolVal(true) then
       false
     else
       isStable(T, NzTDelay, SignalId1, Value1, EventSchSList)

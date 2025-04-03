@@ -1,5 +1,7 @@
 fmod VHDL-IODEF-MOD is
 
+  *** Define value and IO types
+
   protecting STRING .
 
   sorts IODef IOType Type SgDesc IntType PhysType .
@@ -8,10 +10,13 @@ fmod VHDL-IODEF-MOD is
   ops in out inout : -> IOType [ctor] .
   ops 'std_logic bit bool : -> Type [ctor] .
   ops time : -> PhysType [ctor] .
+  *** natural and positive are subtypes of integer
   ops integer natural positive : -> IntType [ctor] .
 
+  *** SgDesc is a tuple containing the types of a signal
   op {_$_} : IOType Type -> SgDesc [ctor] .
 
+  *** IODef is the declaration of a component taking into account value and IO types
   op _:__; : String IOType Type -> IODef [ctor] .
 
 endfm
@@ -37,7 +42,7 @@ fmod VHDL-VALUE-MOD is
   sorts StdLogic Value IntVal StdLogicVal TimeVal NatVal PosVal BoolVal BitVal NumVal .
   sorts PhysVal Time TimeUnit TimeDelta Delta Bit StdLogicAux NzTime .
   sorts To1 To0 .
-  subsorts BitVal BoolVal PosVal NatVal IntVal StdLogicVal TimeVal < Value . *** checkear. añadir un wrapper a los tipos
+  subsorts BitVal BoolVal PosVal NatVal IntVal StdLogicVal TimeVal < Value .
   subsorts Bit StdLogicAux < StdLogic .
   subsorts NzTime TimeDelta < Time .
   subsorts TimeVal < PhysVal .
@@ -100,8 +105,6 @@ fmod VHDL-VALUE-MOD is
   eq to-fs(R min) = to-fs((R * 60) sec) .
   eq to-fs(R hr) = to-fs((R * 60) min) .
 
-
-
   *** Delta delays
   op delta : Nat -> Delta [ctor] .
   op delta : -> Delta [ctor] .
@@ -145,7 +148,6 @@ fmod VHDL-GENERIC-MOD is
   sorts GenDef .
 
   op _: _ := _; : String Type Value -> GenDef [ctor] .
-  ***ops natural integer time positive : -> VarType [ctor] .
 
 endfm
 
@@ -184,7 +186,6 @@ fmod VHDL-INSTCOLON-MOD is
   op abs(_) : PhysVal -> PhysVal [ctor prec 14] .
   ***ops + - : -> NumBinOp [ctor] .
   ***ops * / mod rem ** : -> IBinOp [ctor] .
-  ***op _ _ _ : Term Op AExp -> AExp [ctor] .
 
   vars Op : Op .
   vars SignalId : SignalName .
@@ -248,7 +249,6 @@ fmod VHDL-INSTCOLON-MOD is
   ***Bool op definition
   eq not boolVal(B1) = boolVal(not B1) .
 
-  ***op _or_ : StdLogic AExp -> AExp [ctor] .
   eq bitVal('1') or BitVal2 = bitVal('1') .
   eq BitVal1 or bitVal('1') = bitVal('1') .
   eq bitVal('0') or bitVal('0') = bitVal('0') .
@@ -294,9 +294,6 @@ fmod VHDL-INSTCOLON-MOD is
   eq orU(stdlogicVal('L')) = stdlogicVal('0') .
   eq orU(StdLogicVal) = stdlogicVal('U') [owise] .
 
-  ***op _xor_ : AExp AExp -> AExp [ditto ctor] .
-  ***ceq AExp1 xor AExp2 = stdlogicVal('1') if AExp1 =/= AExp2 /\ (AExp1 == stdlogicVal('1') or AExp2 == stdlogicVal('1')) .
-  ***eq AExp1 xor AExp2 =  stdlogicVal('0') [owise] .
   eq bitVal(Bit1) xor bitVal(Bit1) = bitVal('0') .
   eq bitVal(Bit1) xor bitVal(Bit2) = bitVal('1') [owise] .
 
@@ -318,15 +315,10 @@ fmod VHDL-INSTCOLON-MOD is
   ***Bool op definition
   eq boolVal(B1) xor boolVal(B2) = boolVal(B1 xor B2) .
 
-
-  ***op _xand_ : AExp AExp -> AExp [ctor] .
-  *** COmposite operators
+  *** Composite operators
   eq AExp1 nand AExp2 = not (AExp1 and AExp2) .
   eq AExp1 nor AExp2 = not (AExp1 or AExp2) .
   eq AExp1 xnor AExp2 = not (AExp1 xor AExp2) .
-
-  ***ceq StdLogicVal1 sg-xor AExp2 = stdlogicVal('1') if StdLogicVal1 =/= AExp2 /\ (StdLogicVal1 == stdlogicVal('1') or AExp2 == stdlogicVal('1')) .
-  ***eq StdLogicVal1 sg-xor StdLogicVal2 =  StdLogicVal1 xor StdLogicVal2 [owise] .
 
   *** Resolve multiple values on the same delta. Based on STD_LOGIC standard.
   op resolve : StdLogicVal StdLogicVal -> StdLogicVal .
@@ -344,11 +336,10 @@ fmod VHDL-INSTCOLON-MOD is
   eq resolve(stdlogicVal('H'), stdlogicVal('L')) = stdlogicVal('W') .
   eq resolve(StdLogicVal1, StdLogicVal2) = stdlogicVal('X') [owise] .
 
+  *** = and /= operators are defined for all types of values considered
   eq (Value1 = Value2) = boolVal(Value1 == Value2) .
   eq (Value1 /= Value2) = boolVal(Value1 =/= Value2) .
 
-  ***eq (BoolVal1 = BoolVal2) = boolVal(BoolVal1 == BoolVal2) .
-  ***eq (BoolVal1 /= BoolVal2) = boolVal(BoolVal1 =/= BoolVal2) .
   eq (boolVal(false) < boolVal(true)) = boolVal(true) .
   eq (BoolVal1 < BoolVal2) = boolVal(false) [owise] .
   eq (boolVal(false) "<=" BoolVal2) = boolVal(true) .
@@ -358,8 +349,6 @@ fmod VHDL-INSTCOLON-MOD is
   eq (boolVal(true) ">=" BoolVal2) = boolVal(true) .
   eq (BoolVal1 ">=" BoolVal2) = boolVal(false) [owise] .
 
-  ***eq (BitVal1 = BitVal2) = boolVal(BitVal1 == BitVal2) .
-  ***eq (BitVal1 /= BitVal2) = boolVal(BitVal1 =/= BitVal2) .
   eq (bitVal('0') < bitVal('1')) = boolVal(true) .
   eq (BitVal1 < BitVal2) = boolVal(false) [owise] .
   eq (bitVal('0') "<=" BitVal2) = boolVal(true) .
@@ -389,11 +378,6 @@ fmod VHDL-INSTCOLON-MOD is
   op _rem_ : AExp AExp -> AExp [ctor assoc prec 16] .
   op _mod_ : AExp AExp -> AExp [ctor assoc prec 16] .
   op _**_ : AExp AExp -> AExp [ctor assoc prec 15] .
-  ***op ___ : IntVal IBinOp IntVal -> AExp [ctor] .
-  ***op __ : NumUnOp SignalName -> AExp [ctor] .
-  ***op ___ : IntVal IBinOp SignalName -> AExp [ctor] .
-  ***op ___ : SignalName IBinOp IntVal -> AExp [ctor] .
-  ***op ___ : SignalName IBinOp SignalName -> AExp [ctor] .
 
   ***eq + intVal(Int1) = intVal(+ Int1) .  
   ***eq - intVal(Int1) = intVal(- Int1) .
@@ -438,6 +422,8 @@ endv
 
 fmod VHDL-ATTRIBUTES-MOD is
 
+  *** Define Attribute functions over types and components
+
   protecting VHDL-INSTCOLON-MOD .
   protecting VHDL-VALUE-MOD .
 
@@ -462,6 +448,7 @@ fmod VHDL-ATTRIBUTES-MOD is
   eq bit ' LOW = bitVal('0') .
   eq 'std_logic ' LOW = stdlogicVal('U') .
 
+  *** T'LEFT is equivalent to T'LOW if the type is ASCENDING 
   ceq T ' LEFT = T ' LOW if (T ' ASCENDING) == boolVal(true) .
   eq T ' LEFT = T ' HIGH [owise] .
   
@@ -515,7 +502,7 @@ endv
 mod VHDLMOD is
   *** RAFAEL MORALES PALACIOS - SEMANTICS OF VHDL IN MAUDE
   
-  *** IMPORT DATATYPE MODULES TO BE USED
+  *** IMPORT MODULES TO BE USED
   protecting NAT .
   ***protecting INT .
   ***protecting STRING .
@@ -538,12 +525,11 @@ mod VHDLMOD is
   protecting LIST{String} .
   
   *** Declare sorts to be used and hierarchy between them.
-  sorts VHDLSim VHDLBareSim VHDLCompleteSim Parser ParserTime ParserInsts InputChangeSim InputChangeSimCtrl Code Signal Var Const Clock SimClock ClockPrev Und Error Entity Architecture SgDescStore TimeControlSection ValueStores DescStores . ***sorts VHDLSim Code Entity Port Signal SignalName Var Const VarConstName Value Architecture Process Clock ScheduledInst Und Error .
+  sorts VHDLSim VHDLBareSim VHDLCompleteSim Parser ParserTime ParserInsts InputChangeSim InputChangeSimCtrl Code Signal Var Const Clock SimClock ClockPrev Und Error Entity Architecture SgDescStore TimeControlSection ValueStores DescStores .
   sorts Process ProcessSensitivity ProcessNoSensitivity .
   sorts SeqStatement .
   sorts IfThen EndIf ElsifStatement ElseStatement NullStatement .
-  sorts EmptyList InstBlock StructuredInstList . ***sorts Inst EmptyList NeList{Inst} List{Inst} InstBlock StructuredInstList .
-  ***sorts EventSchSList .
+  sorts EmptyList InstBlock StructuredInstList . 
   sorts NeScheduleList ScheduleList NeListeningList ListeningList .
   sorts Assign SignalAssign VarConstAssign .
   sorts Stores NeStore SignalStore VarStore ConstStore .
@@ -639,10 +625,6 @@ mod VHDLMOD is
   op lookup : Map{String, Value} String -> Value .
   *** lookup-sg must be an eq to be able to evaluate it everywhere
   op lookup-sg : Map{SgTimeTuple, Value} SgTimeTuple -> Value .
-
-  *** final_state: final state reachable when max time elapsed is reached
-  *** op final_state : VHDLSim -> FinalState .
-
 
   *** Variable definition
 
@@ -863,10 +845,6 @@ mod VHDLMOD is
                   < clk(T) [prev: clk(Tprev)] | nil >< unfold(schRestIf(ElsifSt, ElseSt), T) SchList || EventSchSList > << SgSTR | VarSTR | ConstSTR >> # DescStores {repeat: SgChangedMap } {wholeExec: SchListCp} InputChangeSim
                 fi .
 
-  ***rl [end-parse] : [ nil -> SchList ] StoresVar < events: EventSchSList >
-  ***                =>
-  ***                initSimArch([ nil -> SchList ] StoresVar < events: EventSchSList >) .
-
   crl [end-sim-cycle-delta] : < clk(T) [prev: clk(Tprev)] | nil >< nil || EventSchSList > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp} InputChangeSim
                                     => 
                                     < clk(T + delta) [prev: clk(T)] | nil >< schOnTime(SchListCp, T + delta) || EventSchSList > << fill-blanks(get-sgL(SgDescSTR), SgSTR, T + delta, T) | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: insertDefaultRep(SgDescSTR, SgChangedMap) } {wholeExec: SchListCp} InputChangeSim
@@ -952,7 +930,6 @@ mod VHDLMOD is
 
   op sg-val-changed : Value SignalName Time Map{SgTimeTuple, Value} -> Bool .
   eq sg-val-changed(Value, SignalId, T, SgSTR) = (Value =/= lookup-sg(SgSTR, {sgName SignalId, time T})) .
-  ***eq sg-val-changed(Value, SignalId, T, SgSTR) = false [owise] .
 
   op schOnTime : List{ScheduledInst} Time -> List{ScheduledInst} [ctor] .
   eq schOnTime(nil, Tnow) = nil .
@@ -1039,13 +1016,7 @@ mod VHDLMOD is
   eq evalB(boolVal(true), T, SgSTR) = boolVal(true) .
   eq evalB(boolVal(false), T, SgSTR) = boolVal(false) .
   eq evalB(SignalId, T, SgSTR) = SgSTR[{sgName SignalId, time T}] .
-  ***eq evalB(SignalId CompOp AExp1, T, SgSTR) = SgSTR[{sgName SignalId, time T}] CompOp AExp1 .
-  ***eq evalB(AExp1 CompOp SignalId, T, SgSTR) = AExp1 CompOp SgSTR[{sgName SignalId, time T}] .
-  ***eq evalB(SignalId1 CompOp SignalId2, T, SgSTR) = SgSTR[{sgName SignalId1, time T}] CompOp SgSTR[{sgName SignalId2, time T}] .
   eq evalB(AExp1 CompOp AExp2, T, SgSTR) = evalA(AExp1, T, SgSTR) CompOp evalA(AExp2, T, SgSTR) .
-
-  ***op __ : NumUnOp SignalName -> IntVal [ctor] .
-  ***op ___ : SignalName IBinOp SignalName -> IntVal [ctor] .
 
   op evalA : AExp Time Map{SgTimeTuple, Value} -> Value .
   eq evalA(Value, T, SgSTR) = Value .
@@ -1118,7 +1089,6 @@ mod VHDLMOD is
   eq verify-typeAExp(IntT, AExp1 ** AExp2, SgDescSTR) = verify-typeAExp(IntT, AExp1, SgDescSTR) and verify-typeAExp(integer, AExp2, SgDescSTR) .
   *** For the case of comparison operators, signals have and values at each side shall have the same value
   eq verify-typeAExp(bool, AExp1 CompOp AExp2, SgDescSTR) = verify-sameType(AExp1, AExp2, SgDescSTR) .
-  ***eq verify-typeAExp(bool, SignalId1 CompOp SignalId2, SgDescSTR) = verify-typeAExp(get-sgType(SgDescSTR[SignalId1]), SignalId1, SgDescSTR) and verify-typeAExp(get-sgType(SgDescSTR[SignalId1]), SignalId2, SgDescSTR) .
 
   op verify-sameType : AExp AExp Map{SignalName, SgDesc} -> Bool .
   eq verify-sameType(AExp1, AExp2, SgDescSTR) = (verify-typeAExp(bit, AExp1, SgDescSTR) and verify-typeAExp(bit, AExp2, SgDescSTR))

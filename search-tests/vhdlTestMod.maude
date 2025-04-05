@@ -1,8 +1,13 @@
+load ../vhdl_semantics.maude
 mod VHDL-TEST-MOD is
 
     protecting VHDLMOD .
 
     ops test test2 : -> VHDLCompleteSim [ctor] .
+    op test3 : StdLogic StdLogic -> VHDLCompleteSim .
+    ops test4 test5 : StdLogic -> VHDLCompleteSim .
+
+    vars StdLogic0 StdLogic1 : StdLogic .
 
     eq test = run(
                     (
@@ -32,6 +37,55 @@ mod VHDL-TEST-MOD is
                         begin (
                                 sg("B") <= (sg("A") + intVal(5) + intVal(10)) ;
                                 sg("C") <= ((sg("B") + intVal(5)) - sg("B")) ;
+                        )
+                        end "behaviour" );
+                    )) .
+    
+    eq test3(StdLogic0, StdLogic1) = run(
+                                            (
+                                                (entity "adder" is
+                                                    port (("ci" : in  bit ;)  ("s" : out  bit ;) ("co" : out  bit ;)  ) ;
+                                                end "adder" ) ;
+                                                (architecture "rtl" of "adder" is
+                                                (
+                                                    signal "i0" : bit := bitVal(StdLogic0) ;
+                                                    signal "i1" : bit := bitVal(StdLogic1) ;
+                                                )
+                                                begin (
+                                                    sg("s") <= (sg("i0") xor sg("i1") xor sg("ci")) ;
+                                                    sg("co") <= (((sg("i0") and sg("i1")) or (sg("i0") and sg("ci"))) or (sg("i1") and sg("ci"))) ;
+                                                )
+                                                end "rtl" );
+                                            )) .
+
+    eq test4(StdLogic0) = run(
+                    (
+                        (entity "example" is
+                            port (("A" : in  'std_logic ;)  ("B" : inout  'std_logic ;) ("C" : inout  'std_logic ;)  ) ;
+                        end "example" ) ;
+                        (architecture "behaviour" of "example" is 
+                        (
+                            signal "A" : 'std_logic := stdlogicVal(StdLogic0) ;
+                        )
+                        begin (
+                                sg("B") <= sg("A") ;
+                                sg("C") <= sg("B") ;
+                        )
+                        end "behaviour" );
+                    )) .
+
+    eq test5(StdLogic0) = run(
+                    (
+                        (entity "example" is
+                            port (("A" : in  'std_logic ;)  ("B" : inout  'std_logic ;) ("C" : inout  'std_logic ;)  ) ;
+                        end "example" ) ;
+                        (architecture "behaviour" of "example" is 
+                        (
+                            signal "A" : 'std_logic := stdlogicVal(StdLogic0) ;
+                        )
+                        begin (
+                                sg("C") <= sg("B") ;
+                                sg("B") <= sg("A") ;
                         )
                         end "behaviour" );
                     )) .

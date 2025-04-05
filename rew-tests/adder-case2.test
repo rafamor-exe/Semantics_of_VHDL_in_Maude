@@ -1,0 +1,12 @@
+rew run(
+  (
+    (entity "adder" is
+      port (("i0" : in  bit ;) ("i1" : in  bit ;) ("ci" : in  bit ;)  ("s" : out  bit ;) ("co" : out  bit ;)  ) ;
+    end "adder" ) ;
+    (architecture "rtl" of "adder" is
+      begin (
+          sg("s") <= sg("i0") xor sg("i1") xor sg("ci") ;
+          sg("co") <= (sg("i0") and sg("i1")) or (sg("i0") and sg("ci")) or (sg("i1") and sg("ci")) ;
+      )
+    end "rtl" );
+  )) .

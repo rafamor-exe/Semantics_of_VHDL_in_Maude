@@ -1,12 +1,12 @@
 rew run(
   (
-    (entity "example_and" is
-      port (("A" : in  bit ;)  ("B" : inout  'std_logic ;) ("C" : inout  'std_logic ;)  ) ;
-    end "example_and" ) ;
-    (architecture "behaviour" of "example_and" is nop ;
+    (entity "example" is
+      port (("A" : in  'std_logic ;)  ("B" : inout  'std_logic ;) ("C" : inout  'std_logic ;)  ) ;
+    end "example" ) ;
+    (architecture "behaviour" of "example" is 
       begin (
-            ("B" <= (stdlogicVal('0') or "A")) ;
-            ("C" <= (stdlogicVal('0') or "B")) ;
+            sg("B") <= sg("A") ;
+            sg("C") <= sg("B") ;
       )
     end "behaviour" );
-  ), empty) .
+  )) .

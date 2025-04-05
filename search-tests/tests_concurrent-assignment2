@@ -1,0 +1,12 @@
+load ../vhdl_semantics.Maude
+load vhdlTestMod.maude
+
+search test5('0') =>! v:VHDLCompleteSim .
+search test5('1') =>! v:VHDLCompleteSim .
+search test5('Z') =>! v:VHDLCompleteSim .
+search test5('W') =>! v:VHDLCompleteSim .
+search test5('L') =>! v:VHDLCompleteSim .
+search test5('H') =>! v:VHDLCompleteSim .
+search test5('U') =>! v:VHDLCompleteSim .
+search test5('X') =>! v:VHDLCompleteSim .
+search test5('-') =>! v:VHDLCompleteSim .

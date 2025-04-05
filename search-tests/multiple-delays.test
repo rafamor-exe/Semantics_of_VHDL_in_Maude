@@ -1,5 +1,65 @@
 *** Delayed assignments different time
-search run(  (    (entity "multiple_delays" is      port (("A" : in  'std_logic ;)  ("B" : inout  'std_logic ;) ("C" : inout  'std_logic ;)  ) ;    end "multiple_delays" ) ;    (architecture "behaviour" of "multiple_delays" is       (        signal "A" : 'std_logic := stdlogicVal('0') ;      )      begin (          process nil begin            (              (                if (sg("A") = stdlogicVal('1')) then                (                  (sg("B") <= (stdlogicVal('0') or sg("A"))) ;                  (sg("C") <= (stdlogicVal('0') or sg("B"))) ;                )                else                (                  (sg("A") <= transport stdlogicVal('1') after (5 ns)) ;                  (sg("B") <= transport stdlogicVal('0') after (6 ns)) ; (sg("C") <= transport stdlogicVal('0') after (7 ns)) ;                )                end if              ) ;            )          end process ;      )    end "behaviour" );  )) =>! v:VHDLCompleteSim .
+search run(
+    (
+          (entity "multiple_delays" is   
+            port (("A" : in  'std_logic ;)  ("B" : inout  'std_logic ;) ("C" : inout  'std_logic ;)  ) ;
+          end "multiple_delays" ) ;
+          (architecture "behaviour" of "multiple_delays" is
+                 (
+                  signal "A" : 'std_logic := stdlogicVal('0') ;
+                 ) 
+                 begin (
+                  process nil begin
+                  (
+                    (
+                      if (sg("A") = stdlogicVal('1')) then
+                        (
+                          (sg("B") <= (stdlogicVal('0') or sg("A"))) ;
+                          (sg("C") <= (stdlogicVal('0') or sg("B"))) ;
+                        )
+                      else
+                      (
+                        (sg("A") <= transport stdlogicVal('1') after (5 ns)) ;
+                        (sg("B") <= transport stdlogicVal('0') after (6 ns)) ; 
+                        (sg("C") <= transport stdlogicVal('0') after (7 ns)) ;
+                      )
+                      end if
+                      ) ;
+                  )
+                  end process ;
+                  )
+          end "behaviour" );
+    )) =>! v:VHDLCompleteSim .
+
+search run(
+    (
+          (entity "multiple_delays" is   
+            port (("A" : in  'std_logic ;)  ("B" : inout  'std_logic ;) ("C" : inout  'std_logic ;)  ) ;
+          end "multiple_delays" ) ;
+          (architecture "behaviour" of "multiple_delays" is
+                 (
+                  signal "A" : 'std_logic := stdlogicVal('0') ;
+                 ) 
+                 begin (
+                  process nil begin
+                  (
+                    (
+                      if (sg("A") = stdlogicVal('1')) then
+                        (
+                          (sg("B") <= (stdlogicVal('0') or sg("A"))) ;
+                          (sg("C") <= (stdlogicVal('0') or sg("B"))) ;
+                        )
+                      elsif (sg("A") = stdlogicVal('0')) then
+                      (
+                        (sg("A") <= transport stdlogicVal('1') after (5 ns)) ;
+                      )
+                      end if
+                      ) ;
+                  )
+                  end process ;
+                  )
+          end "behaviour" );
+    )) =>! v:VHDLCompleteSim .
 
 
 search [, 48] run(      (            (entity "multiple_delays" is                  port (("A" : in  'std_logic ;)  ("B" : inout  'std_logic ;)  ) ;    end "multiple_delays" ) ;    (architecture "behaviour" of "multiple_delays" is           (signal "A" : 'std_logic := stdlogicVal('0') ;           )        begin (            process nil begin                (                  (                    (sg("B") <= sg("A") after (2000000 fs));                                       )                 )            end process ;        )    end "behaviour" );  ), {scheduledEvent: time (3000000 fs), args {sgName sg("A"), value stdlogicVal('1')}} {scheduledEvent: time (7000000 fs), args {sgName sg("A"), value stdlogicVal('0')}} {scheduledEvent: time (8000000 fs), args {sgName sg("A"), value stdlogicVal('1')}})   =>! v:VHDLCompleteSim .

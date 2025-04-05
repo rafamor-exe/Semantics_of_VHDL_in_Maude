@@ -442,11 +442,14 @@ fmod VHDL-ATTRIBUTES-MOD is
   eq IntT ' ASCENDING = boolVal(true) .
   eq 'std_logic ' ASCENDING = boolVal(true) .
   eq bit ' ASCENDING = boolVal(true) .
+  eq time ' ASCENDING = boolVal(true) .
 
   eq integer ' LOW = intVal(-2147483648) .
   eq natural ' LOW = natVal(0) .
+  eq positive ' LOW = posVal(1) .
   eq bit ' LOW = bitVal('0') .
   eq 'std_logic ' LOW = stdlogicVal('U') .
+  eq time ' LOW = timeVal(-(2 ^ (63)) fs) .
 
   *** T'LEFT is equivalent to T'LOW if the type is ASCENDING 
   ceq T ' LEFT = T ' LOW if (T ' ASCENDING) == boolVal(true) .
@@ -583,6 +586,7 @@ mod VHDLMOD is
   
   *** - Architecture
   op architecture _ of _ is _ begin _ end _ : String String List{Inst;} List{Inst;} String -> Architecture [ctor] .
+  op architecture _ of _ is begin _ end _ : String String List{Inst;} String -> Architecture [ctor] .
   
   *** - Process
   *** TODO: Variable assignment possibility before begin not included
@@ -729,6 +733,10 @@ mod VHDLMOD is
 
   *** An entity declared without instructions is equivalent to an entity with an empty list of instructions
   eq entity Str is end Str = entity Str is nil end Str .
+
+  *** An architecture declared without declaration instructions is equivalent to an architecture with an empty list of declaration instructions
+  eq architecture Str of Str2 is begin IL end Str = architecture Str of Str2 is nil begin IL end Str .
+
   *** A process declared without a sensitivity list is equal to the process with an empty sensitivity list 
   eq process begin IL end process = process nil begin IL end process .
   
@@ -842,7 +850,7 @@ mod VHDLMOD is
                 if (evalB(BoolVal, T, SgSTR) == boolVal(true)) then
                   < clk(T) [prev: clk(Tprev)] | nil >< unfold(IL, T) SchList || EventSchSList > << SgSTR | VarSTR | ConstSTR >> # DescStores {repeat: SgChangedMap } {wholeExec: SchListCp} InputChangeSim
                 else
-                  < clk(T) [prev: clk(Tprev)] | nil >< unfold(schRestIf(ElsifSt, ElseSt), T) SchList || EventSchSList > << SgSTR | VarSTR | ConstSTR >> # DescStores {repeat: SgChangedMap } {wholeExec: SchListCp} InputChangeSim
+                  < clk(T) [prev: clk(Tprev)] | nil >< unfold(schRestIf(ElsifSt, ElseSt, T, SgSTR), T) SchList || EventSchSList > << SgSTR | VarSTR | ConstSTR >> # DescStores {repeat: SgChangedMap } {wholeExec: SchListCp} InputChangeSim
                 fi .
 
   crl [end-sim-cycle-delta] : < clk(T) [prev: clk(Tprev)] | nil >< nil || EventSchSList > << SgSTR | VarSTR | ConstSTR >> # < SgDescSTR > {repeat: SgChangedMap } {wholeExec: SchListCp} InputChangeSim
@@ -962,11 +970,16 @@ mod VHDLMOD is
   eq get-sgL(empty) = nil .
   eq get-sgL((SignalId |-> SgDesc, SgDescSTR)) = SignalId get-sgL(SgDescSTR) .
 
-  op schRestIf : ElsifStatement ElseStatement -> List{Inst;} .
-  eq schRestIf(null, null) = nil .
-  eq schRestIf(null, else IL) = IL .
-  eq schRestIf(elsif boolVal(true) then IL ElsifSt, ElseSt) = IL .
-  eq schRestIf(elsif boolVal(false) then IL ElsifSt, ElseSt) = schRestIf(ElsifSt, ElseSt) .
+  op schRestIf : ElsifStatement ElseStatement Time Map{SgTimeTuple, Value} -> List{Inst;} .
+  eq schRestIf(null, null, T, SgSTR) = nil .
+  eq schRestIf(null, else IL, T, SgSTR) = IL .
+  eq schRestIf(elsif BoolVal then IL ElsifSt, ElseSt, T, SgSTR) =
+    if evalB(BoolVal, T, SgSTR) == boolVal(true) then
+       IL
+    else
+       schRestIf(ElsifSt, ElseSt, T, SgSTR)
+    fi .
+  ***eq schRestIf(elsif boolVal(false) then IL ElsifSt, ElseSt) = schRestIf(ElsifSt, ElseSt) .
 
   op sgChangeOnEv : Time Time Map{SgTimeTuple, Value} List{SignalName} Map{SignalName, Bool} -> Map{SignalName, Bool} .
   eq sgChangeOnEv(T, Tnext, SgSTR, nil, SgChangedMap) = SgChangedMap .

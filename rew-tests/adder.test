@@ -3,7 +3,7 @@ rew run(
     (entity "adder" is
       port (("ci" : in  bit ;)  ("s" : out  bit ;) ("co" : out  bit ;)  ) ;
     end "adder" ) ;
-    (architecture "rtl" of "adder" is nop ;
+    (architecture "rtl" of "adder" is
       (
         signal "i0" : bit := bitVal('1') ;
         signal "i1" : bit := bitVal('1') ;
